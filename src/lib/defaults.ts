@@ -9,7 +9,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   flyingIcon: "heart",
   flyingColor: "#e889aa",
   messagePlacement: "right",
-  musicPlacement: "top-left",
+  musicPlacement: "top-right",
 };
 export function durationMs(value: number, unit: ShareUnit | "weeks" | "months"): number {
   const multiplier = { minutes: 60_000, hours: 3_600_000, days: 86_400_000, weeks: 604_800_000, months: 2_592_000_000 }[unit];
@@ -43,7 +43,7 @@ export function loadSettings(): AppSettings {
       flyingIcon: validIcon ? raw.flyingIcon : "heart",
       flyingColor: isHexColor(raw.flyingColor) ? raw.flyingColor : DEFAULT_SETTINGS.flyingColor,
       messagePlacement: raw.messagePlacement === "below" || raw.messagePlacement === "right" ? raw.messagePlacement : DEFAULT_SETTINGS.messagePlacement,
-      musicPlacement: raw.musicPlacement === "top-right" ? "top-left" : raw.musicPlacement === "below" || raw.musicPlacement === "top-left" ? raw.musicPlacement : DEFAULT_SETTINGS.musicPlacement,
+      musicPlacement: raw.musicPlacement === "below" || raw.musicPlacement === "top-right" ? raw.musicPlacement : DEFAULT_SETTINGS.musicPlacement,
     };
   } catch { return DEFAULT_SETTINGS; }
 }

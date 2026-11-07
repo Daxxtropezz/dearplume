@@ -23,7 +23,6 @@ export default function SharedMessageView() {
   const [musicError, setMusicError] = useState("");
   const [musicLoading, setMusicLoading] = useState(false);
   const [musicOpen, setMusicOpen] = useState(false);
-  const [musicEverOpened, setMusicEverOpened] = useState(false);
 
   useEffect(() => {
     const readFragment = () => setToken(window.location.hash.replace(/^#/, ""));
@@ -65,7 +64,6 @@ export default function SharedMessageView() {
       setMusicUrl("");
       setMusicError("");
       setMusicOpen(false);
-      setMusicEverOpened(false);
       if (result.payload.note.music) {
         setMusicLoading(true);
         try {
@@ -92,7 +90,7 @@ export default function SharedMessageView() {
   const hasColorPhoto = Boolean(payload?.note.photoDataUrl);
   const photoRevealed = complete && hasColorPhoto;
   const isSideBySide = appearance.messagePlacement === "right" && Boolean(payload?.note.asciiArt);
-  const musicOnPicture = appearance.musicPlacement === "top-left" || appearance.musicPlacement === "top-right"; // top-right remains valid for older shares
+  const musicOnPicture = appearance.musicPlacement === "top-right";
   const hasMusic = Boolean(payload?.note.externalMusic || payload?.note.music);
   const musicPlayer = payload?.note.externalMusic
     ? <ExternalMusicPlayer music={payload.note.externalMusic} autoStart />
@@ -144,18 +142,6 @@ export default function SharedMessageView() {
               <div className={`shared-content-layout${isSideBySide ? " side-by-side" : ""}`}>
                 {(Boolean(payload.note.asciiArt) || (hasMusic && musicOnPicture)) && (
                   <div className="shared-media-column">
-                    {hasMusic && musicOnPicture && (
-                      <div className="shared-music-dock">
-                        <button type="button" className="shared-music-dock-toggle" aria-expanded={musicOpen} onClick={() => { if (!musicOpen) setMusicEverOpened(true); setMusicOpen((open) => !open); }}><Music2 size={16}/>{musicOpen ? "Hide controls" : "Music controls"}</button>
-                        {/* Keep media mounted after its first opening. Removing the iframe/audio would stop playback. */}
-                        {musicEverOpened && (
-                          <div className={`shared-music-dock-panel ${musicOpen ? "is-expanded" : "is-collapsed"} ${payload.note.externalMusic?.provider === "youtube" ? "youtube-dock" : "audio-dock"}`}>
-                            {musicPlayer}
-                            {!musicOpen && payload.note.externalMusic?.provider === "youtube" && <p className="youtube-mini-caption">YouTube video stays visible while the controls are collapsed.</p>}
-                          </div>
-                        )}
-                      </div>
-                    )}
                     {payload.note.asciiArt && (
                       <div className={`ascii-art-frame${photoRevealed ? " photo-revealed" : ""}`}>
                         <div className="ascii-top"><span>{photoRevealed ? "your picture, in full color" : "your little picture, in letters"}</span><span>{photoRevealed ? "♡ ORIGINAL MEMORY" : "♡ ASCII MEMORY"}</span></div>
@@ -165,7 +151,12 @@ export default function SharedMessageView() {
                         </div>
                       </div>
                     )}
-
+                    {hasMusic && musicOnPicture && (
+                      <div className="shared-music-dock">
+                        <button type="button" className="shared-music-dock-toggle" aria-expanded={musicOpen} onClick={() => setMusicOpen((open) => !open)}><Music2 size={16}/>{musicOpen ? "Close player" : "Music"}</button>
+                        {musicOpen && <div className="shared-music-dock-panel">{musicPlayer}</div>}
+                      </div>
+                    )}
                   </div>
                 )}
                 <div className="shared-message-column">

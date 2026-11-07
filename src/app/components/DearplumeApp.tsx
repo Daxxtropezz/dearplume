@@ -321,11 +321,11 @@ export default function DearplumeApp() {
         </section>
         <section className="settings-section">
           <h3><Music2 size={18}/> Music player placement</h3>
-          <p>Keep the player below the picture, or use a top-left music control above it. Collapsing keeps the player mounted; MP3 keeps playing, while YouTube keeps its video visible.</p>
+          <p>Keep the player after the picture, or show a small music control in the picture&apos;s top-right corner. Expand it to use YouTube or Spotify.</p>
           <div className="field-group"><label htmlFor="music-placement">Player position</label>
             <select id="music-placement" className="text-input" value={settingsDraft.musicPlacement} onChange={(e) => setSettingsDraft((s) => ({ ...s, musicPlacement: e.target.value as AppSettings["musicPlacement"] }))}>
               <option value="below">Below the picture</option>
-              <option value="top-left">Top-left of the picture</option>
+              <option value="top-right">Top-right of the picture</option>
             </select>
           </div>
         </section>
