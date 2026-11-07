@@ -6,6 +6,16 @@ Dearplume is a cute, local-first message maker for friends, crushes, and loved o
 
 > **Dearplume is a separate application.** It takes inspiration from Dayflow's local-first, secure-link workflow but does not require or import Dayflow files.
 
+## What changed in v0.1.7 — Message placement and picture-corner music
+
+Settings → **Message placement** now lets you choose **Below the picture** or **To the right of the picture**. The side-by-side layout automatically stacks on mobile. Settings → **Music player placement** lets you choose **Below the picture** or a small, expandable **Top-right of the picture** music button. These choices are saved locally and embedded in *newly generated* protected shares; existing links keep their previous layout. When the corner player is closed, playback stops. The small dock does not obscure the photo until the recipient expands it.
+
+**YouTube audio-only limitation:** The official embedded YouTube player must be visible (minimum 200 × 200 pixels), so Dearplume cannot provide a working YouTube sound-only player with just Play/Pause/volume and no video. Instead the music starts as a small control and the official video is revealed when the listener opens it. MP3 is the no-video option.
+
+**Spotify limitations:** Spotify's official compact embed can play only a preview depending on the account, browser, track and region. Full-track playback is not guaranteed without Spotify's licensed/authenticated playback capabilities; auto-play with sound is also blocked in many browsers. Dearplume uses the official embed and cannot force full playback through its custom controls.
+
+No database migration, dependency additions or new environment variables are required. Run `npm run test:share`, `npm run typecheck`, `npm run lint` and `npm run build` after installation.
+
 ## What's new in v0.1.6 — lint cleanup
 
 v0.1.6 fixes the 17 ESLint errors and one warning reported against v0.1.5: settings hydration, object-URL preview effects, typing-effect reset, Next.js internal links, JSX apostrophes, and the CommonJS share test. The encrypted link format, blob storage requirements, passwords, settings, and existing messages do not change. The share tests were moved to `tests/short-share.mjs` and a harmless `.cjs` launcher remains for patch-overlay compatibility.
@@ -71,7 +81,7 @@ This dependency is needed **at build time even if you only use external music li
 | Create a note | Title, message, optional YouTube/Spotify track URL or MP3 (2 MB limit), and optional image (JPG/PNG/WebP/GIF, up to 6 MB) |
 | Created notes | Appears after the first note is saved. View, edit, delete, share; cards show date and picture |
 | Private local storage | Uses browser **IndexedDB** for original notes and images; `localStorage` for preferences |
-| Settings | Gear icon next to the tabs: local note retention, **independent** default link expiration, typing speed, page background, flying icon and color |
+| Settings | Gear icon next to the tabs: local note retention, **independent** default link expiration, typing speed, **message position**, **music player position**, page background, flying icon and color |
 | Flying decorations | Choose hearts, stars, flowers, sparkles, moons, clouds, gifts or butterflies; they fly **from bottom-right toward upper-left** |
 | Local retention | Keep forever or auto-delete notes by creation age after a set number of days, weeks, or 30-day months |
 | Secure sharing | Share one selected note with an AES-256-GCM encrypted snapshot stored in private Blob, referenced by a short URL |

@@ -211,7 +211,7 @@
 @media (max-width:720px) { .site-inner { width: calc(100% - 28px); } .site-header { min-height: 80px; } .private-indicator { font-size: 0; padding: 10px; } .private-indicator svg { width: 18px; height: 18px; } .brand-title { font-size: 26px; } .brand-sub { font-size: 9px; } .intro-section { padding: 39px 8px 30px; } .intro-section h1 { font-size: clamp(40px,9vw,58px); } .intro-section > p { font-size: 12px; } .tabs-hint { display: none; } .tab-button { padding: 13px 11px; font-size: 11px; gap: 6px; } .composer-layout { grid-template-columns: 1fr; } .preview-column { order: -1; } .preview-panel { padding: 18px; } .preview-paper { min-height: 245px; padding: 22px; max-width: 320px; } .paper-placeholder { height: 110px; } .paper-photo { height: 130px; } .composer-card { padding: 23px; } .notes-grid { grid-template-columns: 1fr; gap: 16px; } .note-card { display: grid; grid-template-columns: 36% 1fr; } .note-card-image { height: 100%; min-height: 172px; } .note-card-content { padding: 14px; } .note-card h3 { font-size: 19px; } .site-footer { margin-top: 40px; gap: 10px; flex-wrap: wrap; } .share-fields, .settings-grid { grid-template-columns: 1fr; } .settings-section.wide-setting, .share-fields .field-group:last-child { grid-column: auto; } .icon-picker { grid-template-columns: repeat(4,1fr); } .copy-grid { grid-template-columns: 1fr; } .dialog-card { padding: 21px; } .modal-layer { padding: 12px; } .dialog-header h2 { font-size: 26px; } .recipient-header > span { font-size: 0; } .recipient-header > span svg { width: 18px; height: 18px; } .unlock-card { margin-top: 20px; padding: 25px; } .shared-paper { padding: 35px 21px 25px; } .ascii-art-frame pre { font-size: clamp(3.8px,1.55vw,8px); } .shared-note-wrap h1 { font-size: 39px; } .typing-controls { justify-content: center; } }
 @media (max-width:390px) { .tab-count { display: none; } .tab-button { font-size: 10px; padding: 13px 8px; } .tab-button svg { width: 14px; } .settings-tab { margin-left: 0; } .note-card { grid-template-columns: 1fr; } .note-card-image { height: 120px; min-height: 0; } .form-actions, .modal-actions { flex-wrap: wrap; } .site-header .brand-sub { display:none; } }
 
-/* v0.1.3 - A single flying-object color controls all rose accent text & UI.
+/* v0.1.3 — A single flying-object color controls all rose accent text & UI.
    The text/button variants are darkened for readable contrast on pale panels. */
 .site-shell {
   --rose: var(--accent, #e889aa);
@@ -257,7 +257,7 @@
 .recipient-music p { color: var(--muted); font-size: 12px; }
 .audio-notice { font-size: 11px; color: var(--accent-text); }
 
-/* v0.1.4 - optional YouTube/Spotify playback with explicit third-party loading. */
+/* v0.1.4 — optional YouTube/Spotify playback with explicit third-party loading. */
 .music-source-tabs { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; padding: 4px; margin: 8px 0 12px; border-radius: 12px; border: 1px solid var(--accent-border); background: var(--accent-soft); }
 .music-source-option { border: 1px solid transparent; border-radius: 9px; background: transparent; color: var(--accent-text); padding: 11px 8px; font: inherit; font-weight: 700; font-size: 11px; cursor: pointer; }
 .music-source-option.selected { background: #fff; border-color: var(--accent-border); box-shadow: 0 3px 10px #0000000a; }
@@ -275,7 +275,7 @@
 .external-music-hint { margin-top: 10px; }
 @media (max-width: 390px) { .music-source-option { font-size: 10px; } }
 
-/* v0.1.5 - compact controls; official YouTube player remains visible */
+/* v0.1.5 — compact controls; official YouTube player remains visible */
 .external-music-player { max-width: 365px; margin-left: auto; margin-right: auto; padding: 12px; }
 .external-music-title { margin-bottom: 9px; }
 .external-music-body { display: flex; flex-direction: column; gap: 8px; }
@@ -287,3 +287,27 @@
 .youtube-small-viewport iframe { width: 280px !important; height: 200px !important; max-width: 100%; }
 .external-music-player iframe.spotify-embed { height: 152px; min-width: 280px; }
 .external-music-hint { font-size: 10px; }
+
+/* v0.1.7 — recipient photo / letter layout and picture-corner music dock. */
+.shared-note-wrap:has(.shared-content-layout.side-by-side) { width: min(100%, 900px); }
+.shared-content-layout { min-width: 0; }
+.shared-content-layout.side-by-side { display: grid; grid-template-columns: minmax(0, 47%) minmax(0, 1fr); align-items: start; gap: 24px; }
+.shared-media-column { min-width: 0; position: relative; }
+.shared-message-column { min-width: 0; }
+.shared-message-column > .eyebrow { display: block; text-align: center; margin: 19px 0 4px; }
+.shared-content-layout.side-by-side .shared-message-column > .eyebrow { margin-top: 8px; }
+.shared-media-column .ascii-art-frame { margin: 3px auto 14px; }
+.shared-content-layout.side-by-side .ascii-art-frame pre { font-size: clamp(4px, .82vw, 7px); }
+.shared-music-dock { position: absolute; right: 9px; top: 52px; z-index: 6; }
+.shared-music-dock-toggle { display: inline-flex; align-items: center; gap: 7px; padding: 9px 12px; border-radius: 999px; border: 1px solid var(--accent-border); background: #fffcfffa; box-shadow: 0 6px 18px #6546582b; color: var(--accent-text); font-size: 11px; font-weight: 800; cursor: pointer; }
+.shared-music-dock-toggle:hover { background: var(--accent-soft); }
+.shared-music-dock-panel { position: absolute; right: 0; top: calc(100% + 8px); width: min(345px, calc(100vw - 52px)); z-index: 8; background: #fffdfa; padding: 7px; border: 1px solid var(--accent-border); box-shadow: 0 12px 35px #65465835; border-radius: 14px; }
+.shared-music-dock-panel .external-music-player, .shared-music-dock-panel .recipient-music { margin: 0; max-width: none; transform: none; }
+.shared-music-dock-panel .external-music-source { margin-top: 8px; }
+.shared-message-column .external-music-player { margin: 4px auto 18px; }
+.shared-content-layout.side-by-side .shared-paper h2 { margin-top: 10px; }
+@media (max-width: 700px) {
+  .shared-content-layout.side-by-side { display: block; }
+  .shared-content-layout.side-by-side .ascii-art-frame pre { font-size: clamp(3.8px, 1.55vw, 8px); }
+  .shared-music-dock-panel { width: min(330px, calc(100vw - 72px)); }
+}

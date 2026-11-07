@@ -10,5 +10,11 @@ export type AppSettings = {
   backgroundColor: string;
   flyingIcon: FlyingIconName;
   flyingColor: string;
+  /** Where the recipient sees the message relative to the photo. */
+  messagePlacement: "below" | "right";
+  /** Where the soundtrack controls appear in the recipient view. */
+  musicPlacement: "below" | "top-right";
 };
-export type SharedAppearance = Pick<AppSettings, "typingSpeedMs" | "backgroundColor" | "flyingIcon" | "flyingColor">;
+/** Older encrypted links do not carry the optional layout fields. */
+export type SharedAppearance = Pick<AppSettings, "typingSpeedMs" | "backgroundColor" | "flyingIcon" | "flyingColor"> &
+  Partial<Pick<AppSettings, "messagePlacement" | "musicPlacement">>;
