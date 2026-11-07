@@ -22,6 +22,7 @@ export default function SharedMessageView() {
   const [musicUrl, setMusicUrl] = useState("");
   const [musicError, setMusicError] = useState("");
   const [musicLoading, setMusicLoading] = useState(false);
+  const [musicOpen, setMusicOpen] = useState(false);
 
   useEffect(() => {
     const readFragment = () => setToken(window.location.hash.replace(/^#/, ""));
@@ -62,6 +63,7 @@ export default function SharedMessageView() {
       setPayload(result.payload);
       setMusicUrl("");
       setMusicError("");
+      setMusicOpen(false);
       if (result.payload.note.music) {
         setMusicLoading(true);
         try {
@@ -87,6 +89,14 @@ export default function SharedMessageView() {
   const complete = payload ? shownCharacters >= payload.note.message.length : false;
   const hasColorPhoto = Boolean(payload?.note.photoDataUrl);
   const photoRevealed = complete && hasColorPhoto;
+  const isSideBySide = appearance.messagePlacement === "right" && Boolean(payload?.note.asciiArt);
+  const musicOnPicture = appearance.musicPlacement === "top-right";
+  const hasMusic = Boolean(payload?.note.externalMusic || payload?.note.music);
+  const musicPlayer = payload?.note.externalMusic
+    ? <ExternalMusicPlayer music={payload.note.externalMusic} autoStart />
+    : payload?.note.music
+      ? <div className="recipient-music"><div className="recipient-music-label"><Music2 size={17}/><span>Your little soundtrack: {payload.note.music.name}</span></div>{musicLoading ? <p>Preparing your music...</p> : musicUrl ? <audio controls loop preload="metadata" src={musicUrl} onLoadedMetadata={(event) => { event.currentTarget.volume = 0.5; }} aria-label="Background music — press play when ready"/> : <p>{musicError || "Soundtrack not available."}</p>}<small>Press play to listen while you read. Music loops until you pause it.</small></div>
+      : null;
 
   return (
     <main className="site-shell recipient-shell" style={themeStyle(appearance.backgroundColor, appearance.flyingColor) as CSSProperties}>
@@ -129,30 +139,33 @@ export default function SharedMessageView() {
             <div className="shared-paper">
               <div className="paper-tape" />
               <div className="paper-sparkle">✳</div>
-              {payload.note.asciiArt && (
-                <div className={`ascii-art-frame${photoRevealed ? " photo-revealed" : ""}`}>
-                  <div className="ascii-top">
-                    <span>{photoRevealed ? "your picture, in full color" : "your little picture, in letters"}</span>
-                    <span>{photoRevealed ? "♡ ORIGINAL MEMORY" : "♡ ASCII MEMORY"}</span>
-                  </div>
-                  <div className="ascii-visual-frame">
-                    <pre role="img" aria-label="Photo represented as ASCII characters" aria-hidden={photoRevealed}>{payload.note.asciiArt}</pre>
-                    {payload.note.photoDataUrl && (
-                      <img
-                        className="shared-color-photo"
-                        src={payload.note.photoDataUrl}
-                        alt="Shared picture revealed in color after the message finishes"
-                        aria-hidden={!photoRevealed}
-                      />
+              <div className={`shared-content-layout${isSideBySide ? " side-by-side" : ""}`}>
+                {(Boolean(payload.note.asciiArt) || (hasMusic && musicOnPicture)) && (
+                  <div className="shared-media-column">
+                    {payload.note.asciiArt && (
+                      <div className={`ascii-art-frame${photoRevealed ? " photo-revealed" : ""}`}>
+                        <div className="ascii-top"><span>{photoRevealed ? "your picture, in full color" : "your little picture, in letters"}</span><span>{photoRevealed ? "♡ ORIGINAL MEMORY" : "♡ ASCII MEMORY"}</span></div>
+                        <div className="ascii-visual-frame">
+                          <pre role="img" aria-label="Photo represented as ASCII characters" aria-hidden={photoRevealed}>{payload.note.asciiArt}</pre>
+                          {payload.note.photoDataUrl && <img className="shared-color-photo" src={payload.note.photoDataUrl} alt="Shared picture revealed in color after the message finishes" aria-hidden={!photoRevealed} />}
+                        </div>
+                      </div>
+                    )}
+                    {hasMusic && musicOnPicture && (
+                      <div className="shared-music-dock">
+                        <button type="button" className="shared-music-dock-toggle" aria-expanded={musicOpen} onClick={() => setMusicOpen((open) => !open)}><Music2 size={16}/>{musicOpen ? "Close player" : "Music"}</button>
+                        {musicOpen && <div className="shared-music-dock-panel">{musicPlayer}</div>}
+                      </div>
                     )}
                   </div>
+                )}
+                <div className="shared-message-column">
+                  {hasMusic && !musicOnPicture && musicPlayer}
+                  <span className="eyebrow">A LITTLE SOMETHING TO REMEMBER</span>
+                  <h2>{payload.note.title}</h2>
+                  <p className="typed-message">{payload.note.message.slice(0, shownCharacters)}{!complete && <span className="typing-cursor" aria-hidden="true">|</span>}</p>
                 </div>
-              )}
-              {payload.note.externalMusic && <ExternalMusicPlayer music={payload.note.externalMusic} autoStart /> }
-              {payload.note.music && <div className="recipient-music"><div className="recipient-music-label"><Music2 size={17}/><span>Your little soundtrack: {payload.note.music.name}</span></div>{musicLoading ? <p>Preparing your music...</p> : musicUrl ? <audio controls loop preload="metadata" src={musicUrl} onLoadedMetadata={(event) => { event.currentTarget.volume = 0.5; }} aria-label="Background music — press play when ready"/> : <p>{musicError || "Soundtrack not available."}</p>}<small>Press play to listen while you read. Music loops until you pause it.</small></div>}
-              <span className="eyebrow">A LITTLE SOMETHING TO REMEMBER</span>
-              <h2>{payload.note.title}</h2>
-              <p className="typed-message">{payload.note.message.slice(0, shownCharacters)}{!complete && <span className="typing-cursor" aria-hidden="true">|</span>}</p>
+              </div>
               <div className="shared-paper-footer">sent with a little courage &amp; a lot of ♡</div>
             </div>
             <div className="typing-controls">

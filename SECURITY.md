@@ -8,6 +8,12 @@
 
 **Unlock:** The recipient sends the encrypted token, password and access salt to the API over HTTPS. AES-GCM authentication is verified and server-side expiry is checked before the data is returned to the recipient. The recipient can save or screenshot decrypted content.
 
+## v0.1.7 recipient layout and provider handling
+
+The new `messagePlacement` and `musicPlacement` values are bounded to known choices by the sharing API before encryption. Older encrypted snapshots with neither field remain compatible and retain the original below-picture placement. Display settings do not affect authentication, expiry, or cryptographic controls.
+
+When the receiver selects the picture-corner music button, the third-party player is mounted. Closing it unmounts it, stopping embedded playback. Before expansion the recipient sees only a local button, and no YouTube/Spotify embed is loaded in that position. When open, the YouTube player stays visible at an official, policy-compliant size; the implementation does not attempt audio extraction, background iframe hiding, or scraping. The Spotify embed provides only provider-allowed playback and may be a short preview. Autoplay with sound is not guaranteed. MP3 mode remains available for audio-only playback.
+
 ## v0.1.6 maintenance patch
 
 This release adjusts React effects, media-preview object URL lifecycle management, internal navigation, and lint/test structure. No changes were made to encrypted tokens, stored note records, password/salt handling, expiration policy, or Vercel Blob authorization. Existing notes and short/legacy shares remain compatible. Run the share tests and application checks after applying the patch.

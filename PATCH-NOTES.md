@@ -1,5 +1,12 @@
 # Dearplume Patch Notes
 
+## v0.1.7 — Layout preferences and floating music control (2026-11-07)
+- Added **Message placement** under Settings: below picture, or right of picture on desktop (automatically stacked on smaller screens).
+- Added **Music player placement** under Settings: below picture or a compact top-right button over the picture. The picture-corner control expands only when clicked; closing it unmounts and stops the embedded player.
+- New preferences persist in localStorage and are included in new encrypted shares; they are validated server-side. Older links without these fields retain their original below-picture layout.
+- MP3 attachments remain audio-only. YouTube's video must stay visible when playing via its official player; the floating control does not bypass that rule. Spotify's official embed can play only a preview for some listeners, and autoplay with sound is not guaranteed for either provider.
+- No new dependencies, storage migrations, or secrets. Tested share creation/unlock including new/invalid layout values, plus TypeScript/TSX syntax checking; full Next.js lint/build are to be run on your device.
+
 ## v0.1.6 — ESLint cleanup and React effect fixes (2026-11-07)
 - Fixed the 17 errors and one warning reported by ESLint on v0.1.5 without disabling application lint rules.
 - Made settings hydration wait for IndexedDB initialization, preserving the server-rendered defaults until browser settings load.
