@@ -87,3 +87,14 @@ In v0.1.4 the recipient had to click Load player. In v0.1.5 recipient embeds loa
 
 ### v0.1.8 media dock
 Collapsing the player retains its audio element or iframe and does not change encryption or private storage. YouTube remains visually displayed while playing as required by the provider. Spotify playback and browser background policies may interrupt hidden playback; no bypass of provider licensing is implemented.
+
+
+### v0.1.9 photo collections
+
+- Up to eight images per note; each file is limited to 6 MB and the total to 24 MB on the creator's device.
+- Before sharing, photos are downscaled client-side. The chosen main photo is converted to ASCII.
+- The encrypted, private Blob snapshot includes compressed photo previews, **not original full-resolution images**.
+- The server validates the image data URL type, count, aggregate size, and selected index before saving or unlocking.
+- The encrypted share token is limited to 180,000 characters, with a bounded decompression size.
+- Exports of private local notes are unencrypted, even if a link to the same content is protected.
+- Anyone holding the link, password, and salt before expiry can view or save all shared images.

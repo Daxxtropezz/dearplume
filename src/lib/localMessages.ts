@@ -1,4 +1,4 @@
-import type { Message, MessageBackup } from "@/types/message";
+import { messagePhotos, MAX_LOCAL_PHOTO_BYTES, MAX_NOTE_PHOTOS, MAX_TOTAL_LOCAL_PHOTO_BYTES, type Message, type MessageBackup, type MessagePhoto } from "@/types/message";
 import type { AppSettings } from "@/types/settings";
 import { durationMs } from "./defaults";
 import { parseExternalMusicLink, originalMusicUrl } from "./externalMusic";
@@ -60,8 +60,12 @@ function blobToDataUrl(blob: Blob): Promise<string> {
 export async function exportBackup(notes: Message[]): Promise<string> {
   const backup: MessageBackup[] = [];
   for (const note of notes) {
-    const { photo, music, ...rest } = note;
-    backup.push({ ...rest, ...(photo ? { photoDataUrl: await blobToDataUrl(photo) } : {}), ...(music ? { musicDataUrl: (await blobToDataUrl(music)).replace(/^data:[^;]+;base64,/, "data:audio/mpeg;base64,") } : {}) });
+    const { photo, photos, music, ...rest } = note;
+    const attachments = messagePhotos(note);
+    backup.push({ ...rest,
+      ...(attachments.length ? { photos: await Promise.all(attachments.map(async (item) => ({ id: item.id, ...(item.name ? { name: item.name } : {}), photoDataUrl: await blobToDataUrl(item.blob) }))) } : {}),
+      ...(photo && !photos?.length ? { photoDataUrl: await blobToDataUrl(photo) } : {}),
+      ...(music ? { musicDataUrl: (await blobToDataUrl(music)).replace(/^data:[^;]+;base64,/, "data:audio/mpeg;base64,") } : {}) });
   }
   return JSON.stringify({ app: "Dearplume", version: 1, exportedAt: new Date().toISOString(), notes: backup }, null, 2);
 }
@@ -81,6 +85,28 @@ export async function importBackup(raw: string): Promise<number> {
       photo = await response.blob();
       if (photo.size > 6_000_000) throw new Error("A photo in the backup is too large.");
     }
+    let photos: MessagePhoto[] | undefined;
+    if (entry.photos !== undefined) {
+      if (!Array.isArray(entry.photos) || entry.photos.length > MAX_NOTE_PHOTOS) throw new Error("Backup contains too many pictures.");
+      const seen = new Set<string>();
+      let totalBytes = 0;
+      photos = [];
+      for (const item of entry.photos) {
+        if (!item || typeof item !== "object" || typeof item.id !== "string" || !/^[A-Za-z0-9:_-]{1,100}$/.test(item.id) || seen.has(item.id) ||
+            (item.name !== undefined && (typeof item.name !== "string" || item.name.length > 180)) ||
+            typeof item.photoDataUrl !== "string" || item.photoDataUrl.length > 9_000_000 ||
+            !/^data:image\/(png|jpeg|webp|gif);base64,[A-Za-z0-9+/]+={0,2}$/.test(item.photoDataUrl)) throw new Error("Backup contains an invalid picture.");
+        seen.add(item.id);
+        const response = await fetch(item.photoDataUrl);
+        const blob = await response.blob();
+        totalBytes += blob.size;
+        if (blob.size > MAX_LOCAL_PHOTO_BYTES || totalBytes > MAX_TOTAL_LOCAL_PHOTO_BYTES) throw new Error("Pictures in this note exceed the storage limit.");
+        photos.push({ id: item.id, blob, ...(item.name ? { name: item.name } : {}) });
+      }
+      if (entry.mainPhotoId !== undefined && (typeof entry.mainPhotoId !== "string" || !seen.has(entry.mainPhotoId))) throw new Error("Backup has an invalid main picture selection.");
+    }
+    if (photo && !photos?.length) photos = [{ id: "legacy-main", blob: photo, name: "Original picture" }];
+    if (photos?.length && !photos.find((item) => item.id === entry.mainPhotoId)) entry.mainPhotoId = photos[0].id;
     let music: Blob | undefined;
     if (entry.musicDataUrl !== undefined) {
       if (typeof entry.musicDataUrl !== "string" || entry.musicDataUrl.length > 2_800_000 || !/^data:audio\/mpeg;base64,[A-Za-z0-9+/]+={0,2}$/.test(entry.musicDataUrl)) throw new Error("Backup contains invalid music.");
@@ -91,7 +117,7 @@ export async function importBackup(raw: string): Promise<number> {
     if (entry.musicName !== undefined && (typeof entry.musicName !== "string" || entry.musicName.length > 160)) throw new Error("Invalid music filename.");
     if (entry.musicLink !== undefined && (typeof entry.musicLink !== "string" || !parseExternalMusicLink(entry.musicLink))) throw new Error("Backup has an invalid external music link.");
     if (music && entry.musicLink) throw new Error("A note can have either a song link or an MP3, not both.");
-    validated.push({ id: entry.id, title: entry.title, message: entry.message, createdAt: entry.createdAt, updatedAt: entry.updatedAt, photo, music, musicName: music ? (entry.musicName || "Attached music.mp3") : undefined, musicLink: entry.musicLink ? originalMusicUrl(parseExternalMusicLink(entry.musicLink)!) : undefined });
+    validated.push({ id: entry.id, title: entry.title, message: entry.message, createdAt: entry.createdAt, updatedAt: entry.updatedAt, photos, mainPhotoId: photos?.length ? entry.mainPhotoId : undefined, music, musicName: music ? (entry.musicName || "Attached music.mp3") : undefined, musicLink: entry.musicLink ? originalMusicUrl(parseExternalMusicLink(entry.musicLink)!) : undefined });
   }
   for (const note of validated) await putMessage(note);
   return validated.length;

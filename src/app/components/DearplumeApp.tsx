@@ -7,7 +7,7 @@ import FlyingBackground, { DECORATIONS } from "./FlyingBackground";
 import ExternalMusicPlayer from "./ExternalMusicPlayer";
 import { externalMusicLabel, originalMusicUrl, parseExternalMusicLink } from "@/lib/externalMusic";
 import Modal from "./Modal";
-import type { Message } from "@/types/message";
+import { messagePhotos, selectedMainPhoto, MAX_NOTE_PHOTOS, MAX_LOCAL_PHOTO_BYTES, MAX_TOTAL_LOCAL_PHOTO_BYTES, type Message, type MessagePhoto } from "@/types/message";
 import type { SharedCredentials } from "@/types/share";
 import type { AppSettings, FlyingIconName, ShareUnit } from "@/types/settings";
 import { FLYING_ICONS } from "@/types/settings";
@@ -34,14 +34,15 @@ export default function DearplumeApp() {
   const [tab, setTab] = useState<Tab>("compose");
   const [notes, setNotes] = useState<Message[]>([]);
   const [loaded, setLoaded] = useState(false);
-  const [photoUrls, setPhotoUrls] = useState<Record<string, string>>({});
+  const [photoUrls, setPhotoUrls] = useState<Record<string, Record<string, string>>>({});
   const [draftTitle, setDraftTitle] = useState("");
   const [draftMessage, setDraftMessage] = useState("");
-  const [draftPhoto, setDraftPhoto] = useState<File | null | undefined>(undefined);
+  const [draftPhotos, setDraftPhotos] = useState<MessagePhoto[]>([]);
+  const [draftMainPhotoId, setDraftMainPhotoId] = useState("");
   const [draftMusic, setDraftMusic] = useState<File | null | undefined>(undefined);
   const [draftMusicLink, setDraftMusicLink] = useState("");
   const [musicMode, setMusicMode] = useState<"link" | "mp3">("link");
-  const [draftPhotoUrl, setDraftPhotoUrl] = useState("");
+  const [draftPhotoUrls, setDraftPhotoUrls] = useState<Record<string, string>>({});
   const [draftMusicUrl, setDraftMusicUrl] = useState("");
   const [musicUrls, setMusicUrls] = useState<Record<string, string>>({});
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -90,22 +91,26 @@ export default function DearplumeApp() {
   }, [settings, reload]);
 
   useEffect(() => {
-    const urls: Record<string, string> = {};
-    notes.forEach((note) => { if (note.photo) urls[note.id] = URL.createObjectURL(note.photo); });
+    const urls: Record<string, Record<string, string>> = {};
+    notes.forEach((note) => {
+      urls[note.id] = {};
+      messagePhotos(note).forEach((photo) => { urls[note.id][photo.id] = URL.createObjectURL(photo.blob); });
+    });
     // Object URLs are browser resources: publish them after they are created,
     // and always cancel/revoke them when the note list changes or unmounts.
     const timer = window.setTimeout(() => setPhotoUrls(urls), 0);
     return () => {
       window.clearTimeout(timer);
-      Object.values(urls).forEach((url) => URL.revokeObjectURL(url));
+      Object.values(urls).forEach((group) => Object.values(group).forEach((url) => URL.revokeObjectURL(url)));
     };
   }, [notes]);
 
   useEffect(() => {
-    const url = draftPhoto ? URL.createObjectURL(draftPhoto) : "";
-    const timer = window.setTimeout(() => setDraftPhotoUrl(url), 0);
-    return () => { window.clearTimeout(timer); if (url) URL.revokeObjectURL(url); };
-  }, [draftPhoto]);
+    const urls: Record<string, string> = {};
+    draftPhotos.forEach((photo) => { urls[photo.id] = URL.createObjectURL(photo.blob); });
+    const timer = window.setTimeout(() => setDraftPhotoUrls(urls), 0);
+    return () => { window.clearTimeout(timer); Object.values(urls).forEach((url) => URL.revokeObjectURL(url)); };
+  }, [draftPhotos]);
 
   useEffect(() => {
     const urls: Record<string, string> = {};
@@ -133,12 +138,17 @@ export default function DearplumeApp() {
   const shareNote = notes.find((note) => note.id === shareId);
   const editingNote = notes.find((note) => note.id === editingId);
   const appearance = useMemo(() => ({ backgroundColor: settings.backgroundColor, flyingColor: settings.flyingColor, flyingIcon: settings.flyingIcon, typingSpeedMs: settings.typingSpeedMs, messagePlacement: settings.messagePlacement, musicPlacement: settings.musicPlacement }), [settings]);
-  const previewUrl = draftPhoto === null ? "" : draftPhotoUrl || (editingId ? photoUrls[editingId] : "");
+  const draftMainPhoto = draftPhotos.find((item) => item.id === draftMainPhotoId) || draftPhotos[0];
+  const previewUrl = draftMainPhoto ? draftPhotoUrls[draftMainPhoto.id] || "" : "";
+  const notePhotoUrl = (note: Message) => {
+    const main = selectedMainPhoto(note);
+    return main ? photoUrls[note.id]?.[main.id] || "" : "";
+  };
   const musicPreviewUrl = draftMusic === null ? "" : draftMusicUrl || (editingId ? musicUrls[editingId] : "");
 
-  function resetComposer() { setEditingId(null); setDraftTitle(""); setDraftMessage(""); setDraftPhoto(undefined); setDraftMusic(undefined); setDraftMusicLink(""); setMusicMode("link"); }
+  function resetComposer() { setEditingId(null); setDraftTitle(""); setDraftMessage(""); setDraftPhotos([]); setDraftMainPhotoId(""); setDraftMusic(undefined); setDraftMusicLink(""); setMusicMode("link"); }
   function startEditing(note: Message) {
-    setEditingId(note.id); setDraftTitle(note.title); setDraftMessage(note.message); setDraftPhoto(undefined); setDraftMusic(undefined); setDraftMusicLink(note.musicLink || ""); setMusicMode(note.music && !note.musicLink ? "mp3" : "link"); setOpenId(null); setTab("compose");
+    setEditingId(note.id); setDraftTitle(note.title); setDraftMessage(note.message); setDraftPhotos(messagePhotos(note)); setDraftMainPhotoId(selectedMainPhoto(note)?.id || ""); setDraftMusic(undefined); setDraftMusicLink(note.musicLink || ""); setMusicMode(note.music && !note.musicLink ? "mp3" : "link"); setOpenId(null); setTab("compose");
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
   async function saveNote(event: FormEvent<HTMLFormElement>) {
@@ -151,7 +161,7 @@ export default function DearplumeApp() {
     setBusy(true);
     try {
       const now = Date.now();
-      await putMessage({ id: editingId || crypto.randomUUID(), title, message, createdAt: editingNote?.createdAt || now, updatedAt: now, photo: draftPhoto === undefined ? editingNote?.photo : draftPhoto || undefined,
+      await putMessage({ id: editingId || crypto.randomUUID(), title, message, createdAt: editingNote?.createdAt || now, updatedAt: now, photos: draftPhotos, mainPhotoId: draftMainPhoto?.id,
         music: musicMode === "mp3" ? (draftMusic === undefined ? editingNote?.music : draftMusic || undefined) : undefined,
         musicName: musicMode === "mp3" ? (draftMusic === undefined ? editingNote?.musicName : draftMusic?.name) : undefined,
         musicLink: parsedMusic ? originalMusicUrl(parsedMusic) : undefined });
@@ -160,12 +170,21 @@ export default function DearplumeApp() {
     finally { setBusy(false); }
   }
   function onPhotoChange(event: ChangeEvent<HTMLInputElement>) {
-    const file = event.target.files?.[0];
+    const files = [...(event.target.files || [])];
     event.target.value = "";
-    if (!file) return;
-    if (!/^image\/(png|jpeg|webp|gif)$/.test(file.type)) return setFeedback("Choose a JPG, PNG, WebP, or GIF picture.");
-    if (file.size > 6_000_000) return setFeedback("Choose a picture smaller than 6 MB.");
-    setDraftPhoto(file);
+    if (!files.length) return;
+    if (files.some((file) => !/^image\/(png|jpeg|webp|gif)$/.test(file.type))) return setFeedback("Choose JPG, PNG, WebP, or GIF pictures.");
+    if (files.some((file) => file.size > MAX_LOCAL_PHOTO_BYTES)) return setFeedback("Each picture must be smaller than 6 MB.");
+    if (files.length + draftPhotos.length > MAX_NOTE_PHOTOS) return setFeedback(`You can attach up to ${MAX_NOTE_PHOTOS} pictures.`);
+    if (files.reduce((sum, file) => sum + file.size, 0) + draftPhotos.reduce((sum, photo) => sum + photo.blob.size, 0) > MAX_TOTAL_LOCAL_PHOTO_BYTES) return setFeedback("Pictures in a note must total no more than 24 MB.");
+    const fresh = files.map((file) => ({ id: crypto.randomUUID(), blob: file, name: file.name }));
+    setDraftPhotos((current) => [...current, ...fresh]);
+    if (!draftPhotos.length) setDraftMainPhotoId(fresh[0].id);
+  }
+  function removeDraftPhoto(id: string) {
+    const remaining = draftPhotos.filter((item) => item.id !== id);
+    setDraftPhotos(remaining);
+    if (draftMainPhotoId === id) setDraftMainPhotoId(remaining[0]?.id || "");
   }
   function onMusicChange(event: ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
@@ -202,13 +221,16 @@ export default function DearplumeApp() {
     if (!Number.isInteger(shareValue) || shareValue < 1 || shareValue > 365 || durationMs(shareValue, shareUnit) > durationMs(90, "days")) return setShareError("Choose a whole-number duration of at most 90 days.");
     setShareBusy(true); setShareError("");
     try {
-      const asciiArt = shareNote.photo ? await photoToAscii(shareNote.photo) : "";
-      const photoDataUrl = shareNote.photo ? await photoToSharedPreview(shareNote.photo) : undefined;
+      const gallery = messagePhotos(shareNote);
+      const mainPhoto = selectedMainPhoto(shareNote);
+      const asciiArt = mainPhoto ? await photoToAscii(mainPhoto.blob) : "";
+      const photos = gallery.length ? await Promise.all(gallery.map((photo) => photoToSharedPreview(photo.blob, gallery.length > 1 ? 8_000 : 12_000))) : undefined;
+      const mainPhotoIndex = gallery.length ? gallery.findIndex((photo) => photo.id === mainPhoto?.id) : undefined;
       const musicDataUrl = shareNote.music && !shareNote.musicLink ? await blobToAudioDataUrl(shareNote.music) : undefined;
       const externalMusic = shareNote.musicLink ? parseExternalMusicLink(shareNote.musicLink) : null;
       if (shareNote.musicLink && !externalMusic) throw new Error("The saved music link is invalid. Edit the note and paste a new link.");
       setAsciiPreview(asciiArt);
-      const response = await fetch("/api/message-share", { method: "POST", headers: { "Content-Type": "application/json" }, cache: "no-store", referrerPolicy: "no-referrer", body: JSON.stringify({ action: "create", note: { title: shareNote.title, message: shareNote.message, asciiArt, photoDataUrl, ...(externalMusic ? { externalMusic } : {}) }, ...(musicDataUrl ? { musicDataUrl, musicName: shareNote.musicName || "Attached music.mp3" } : {}), appearance, duration: { value: shareValue, unit: shareUnit }, password: sharePassword, accessSalt: shareSalt }) });
+      const response = await fetch("/api/message-share", { method: "POST", headers: { "Content-Type": "application/json" }, cache: "no-store", referrerPolicy: "no-referrer", body: JSON.stringify({ action: "create", note: { title: shareNote.title, message: shareNote.message, asciiArt, ...(photos ? { photos, mainPhotoIndex } : {}), ...(externalMusic ? { externalMusic } : {}) }, ...(musicDataUrl ? { musicDataUrl, musicName: shareNote.musicName || "Attached music.mp3" } : {}), appearance, duration: { value: shareValue, unit: shareUnit }, password: sharePassword, accessSalt: shareSalt }) });
       const result: { id?: string; expiresAt?: number; error?: string } = await response.json();
       if (!response.ok || !result.id || !result.expiresAt) throw new Error(result.error || "Could not generate short share link.");
       const data = { url: `${window.location.origin}/s#${result.id}`, password: sharePassword, accessSalt: shareSalt, expiresAt: result.expiresAt, title: shareNote.title };
@@ -230,7 +252,7 @@ export default function DearplumeApp() {
   async function restore(event: ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0]; event.target.value = "";
     if (!file) return;
-    if (file.size > 40_000_000) return setFeedback("Backup file is too large.");
+    if (file.size > 80_000_000) return setFeedback("Backup file is too large (80 MB limit).");
     try { setBusy(true); const count = await importBackup(await file.text()); await reload(); setFeedback(`Imported ${prettyNumber(count)}. Matching IDs were replaced.`); if (count) setTab("created"); }
     catch (error) { setFeedback(error instanceof Error ? error.message : "Import failed."); }
     finally { setBusy(false); }
@@ -255,7 +277,7 @@ export default function DearplumeApp() {
         <section className="intro-section">
           <div className="small-sticker"><Sparkles size={14} /> YOUR LITTLE CORNER OF AFFECTION</div>
           <h1>A little note,<br/><em>a lot of heart.</em> <span aria-hidden="true">♡</span></h1>
-          <p>For someone special, your best friend, or that one person who makes your day. Make a note, add a picture, and send a little magic.</p>
+          <p>For someone special, your best friend, or that one person who makes your day. Make a note, add pictures, and send a little magic.</p>
         </section>
 
         <div className="tabs-bar" role="navigation" aria-label="Main sections">
@@ -273,7 +295,27 @@ export default function DearplumeApp() {
               <div className="panel-heading"><div className="heading-icon"><Pencil size={20} /></div><div><span className="eyebrow">FROM THE HEART</span><h2>{editingId ? "Edit your little note" : "Write something sweet"}</h2></div></div>
               <div className="field-group"><label htmlFor="note-title">Give it a title <span>*</span></label><input id="note-title" className="text-input" maxLength={120} placeholder="e.g. For the person who makes me smile" value={draftTitle} onChange={(e) => setDraftTitle(e.target.value)} required/><span className="field-hint">A little headline, just for them</span></div>
               <div className="field-group"><label htmlFor="note-message">Your message <span>*</span></label><textarea id="note-message" className="text-input message-input" rows={7} maxLength={5000} placeholder="Dear you, there's something I've been meaning to say..." value={draftMessage} onChange={(e) => setDraftMessage(e.target.value)} required/><span className="field-hint right-hint">{draftMessage.length} / 5,000</span></div>
-              <div className="field-group"><label>Attach a favorite picture <span className="optional">optional</span></label><label className="upload-zone"><input type="file" accept="image/png,image/jpeg,image/webp,image/gif" onChange={onPhotoChange} aria-label="Choose picture"/><ImagePlus size={23}/><strong>Click to choose a picture</strong><small>JPG, PNG, WebP or GIF • up to 6 MB</small></label>{previewUrl && <div className="photo-attached"><img src={previewUrl} alt="Selected picture preview"/><span>Picture attached <small>Only stored on this device</small></span><button className="icon-button" type="button" aria-label="Remove picture" onClick={() => setDraftPhoto(null)}><X size={18}/></button></div>}</div>
+              <div className="field-group">
+                <label>Attach your favorite pictures <span className="optional">optional · {draftPhotos.length}/{MAX_NOTE_PHOTOS}</span></label>
+                <label className="upload-zone"><input type="file" multiple accept="image/png,image/jpeg,image/webp,image/gif" onChange={onPhotoChange} aria-label="Choose up to eight pictures"/><ImagePlus size={23}/><strong>Choose pictures</strong><small>Up to 8 JPG, PNG, WebP or GIF · 6 MB each · 24 MB total</small></label>
+                {draftPhotos.length > 0 && (
+                  <div className="photo-gallery-picker" role="group" aria-label="Select which picture will appear as ASCII art">
+                    <p>Choose the main picture to appear in ASCII while your message types. Afterward, all pictures form a looping photo stack.</p>
+                    <div className="photo-picker-grid">
+                      {draftPhotos.map((photo, index) => (
+                        <div key={photo.id} className={`photo-picker-item${photo.id === draftMainPhoto?.id ? " selected" : ""}`}>
+                          {draftPhotoUrls[photo.id] && <img src={draftPhotoUrls[photo.id]} alt={`Picture ${index + 1}`} />}
+                          <button type="button" className="photo-main-select" aria-pressed={photo.id === draftMainPhoto?.id} onClick={() => setDraftMainPhotoId(photo.id)}>
+                            {photo.id === draftMainPhoto?.id ? "♡ Main ASCII" : "Make main"}
+                          </button>
+                          <button type="button" className="photo-remove" aria-label={`Remove picture ${index + 1}`} onClick={() => removeDraftPhoto(photo.id)}><X size={15}/></button>
+                        </div>
+                      ))}
+                    </div>
+                    <span className="field-hint">The selected main picture is revealed first. Other pictures rotate on top of it every 3.5 seconds.</span>
+                  </div>
+                )}
+              </div>
               <div className="field-group">
                 <label>Background music <span className="optional">optional</span></label>
                 <div className="music-source-tabs" role="group" aria-label="Music source">
@@ -297,17 +339,22 @@ export default function DearplumeApp() {
               </div>
               <div className="form-actions">{editingId && <button type="button" className="button secondary" onClick={resetComposer}>Cancel editing</button>}<button type="submit" className="button primary grow" disabled={busy}><Heart size={17} fill="currentColor"/> {busy ? "Saving..." : editingId ? "Save changes" : "Save this little note"} <ChevronRight size={17}/></button></div>
             </form>
-            <aside className="preview-column"><div className="panel-card preview-panel"><div className="preview-topline"><span><Eye size={16}/> A LITTLE PREVIEW</span><span className="live-pill">LIVE</span></div><div className="preview-paper"><div className="paper-tape"/><div className="paper-sparkle">✳</div>{previewUrl ? <img className="paper-photo" src={previewUrl} alt="Picture for this note"/> : <div className="paper-placeholder"><Heart size={44} strokeWidth={1.25}/><span>a little space for your favorite moment</span></div>}<div className="paper-rule"/><h3>{draftTitle || "Your sweet title goes here"}</h3><p>{draftMessage || "Every lovely story starts with a few words..."}</p>{(musicMode === "link" ? Boolean(draftMusicLink.trim() && parseExternalMusicLink(draftMusicLink)) : Boolean(musicPreviewUrl)) && <div className="paper-music"><Music2 size={14}/> a little soundtrack attached</div>}<div className="paper-signoff">made with ♡ in dearplume</div></div><p className="preview-note">When shared, your picture starts as ASCII art and becomes a color photo when the message finishes typing.</p></div><div className="soft-tip"><Sparkles size={18}/><span>Every note lives privately in your browser until you choose to create a protected share link.</span></div></aside>
+            <aside className="preview-column"><div className="panel-card preview-panel"><div className="preview-topline"><span><Eye size={16}/> A LITTLE PREVIEW</span><span className="live-pill">LIVE</span></div><div className="preview-paper"><div className="paper-tape"/><div className="paper-sparkle">✳</div>{previewUrl ? <img className="paper-photo" src={previewUrl} alt="Picture for this note"/> : <div className="paper-placeholder"><Heart size={44} strokeWidth={1.25}/><span>a little space for your favorite moment</span></div>}<div className="paper-rule"/><h3>{draftTitle || "Your sweet title goes here"}</h3><p>{draftMessage || "Every lovely story starts with a few words..."}</p>{(musicMode === "link" ? Boolean(draftMusicLink.trim() && parseExternalMusicLink(draftMusicLink)) : Boolean(musicPreviewUrl)) && <div className="paper-music"><Music2 size={14}/> a little soundtrack attached</div>}<div className="paper-signoff">made with ♡ in dearplume</div></div><p className="preview-note">When shared, your chosen main picture starts as ASCII. After typing, all attached pictures cycle in a layered photo stack.</p></div><div className="soft-tip"><Sparkles size={18}/><span>Every note lives privately in your browser until you choose to create a protected share link.</span></div></aside>
           </section>
         ) : (
-          <section className="created-section"><div className="collection-title"><div><span className="eyebrow">YOUR SECRET LITTLE LIBRARY</span><h2>Notes you&apos;ve made <span>♡</span></h2><p>{prettyNumber(notes.length)} kept safely in this browser</p></div><button className="button secondary" type="button" onClick={() => { resetComposer(); setTab("compose"); }}><Plus size={16}/> New note</button></div><div className="notes-grid">{notes.map((note, index) => <article key={note.id} className="note-card"><div className={`note-card-image ${!note.photo ? "no-photo" : ""}`}>{photoUrls[note.id] ? <img src={photoUrls[note.id]} alt={`Photo attached to ${note.title}`}/> : <span>{index % 2 === 0 ? "♡" : "✳"}</span>}</div><div className="note-card-content"><span className="note-date"><Clock3 size={13}/> {formatDate(note.createdAt)} {(note.music || note.musicLink) && <Music2 size={14} aria-label="Music attached"/>}</span><h3>{note.title}</h3><p>{note.message}</p><div className="note-card-actions"><button className="button mini secondary" type="button" onClick={() => setOpenId(note.id)}><Eye size={15}/> View</button><button className="button mini primary" type="button" onClick={() => openShare(note)}><Send size={14}/> Share</button></div></div></article>)}</div></section>
+          <section className="created-section"><div className="collection-title"><div><span className="eyebrow">YOUR SECRET LITTLE LIBRARY</span><h2>Notes you&apos;ve made <span>♡</span></h2><p>{prettyNumber(notes.length)} kept safely in this browser</p></div><button className="button secondary" type="button" onClick={() => { resetComposer(); setTab("compose"); }}><Plus size={16}/> New note</button></div><div className="notes-grid">{notes.map((note, index) => <article key={note.id} className="note-card"><div className={`note-card-image ${!messagePhotos(note).length ? "no-photo" : ""}`}>{notePhotoUrl(note) ? <img src={notePhotoUrl(note)} alt={`Main picture attached to ${note.title}`}/> : <span>{index % 2 === 0 ? "♡" : "✳"}</span>}</div><div className="note-card-content"><span className="note-date"><Clock3 size={13}/> {formatDate(note.createdAt)} {(note.music || note.musicLink) && <Music2 size={14} aria-label="Music attached"/>}</span><h3>{note.title}</h3><p>{note.message}</p><div className="note-card-actions"><button className="button mini secondary" type="button" onClick={() => setOpenId(note.id)}><Eye size={15}/> View</button><button className="button mini primary" type="button" onClick={() => openShare(note)}><Send size={14}/> Share</button></div></div></article>)}</div></section>
         )}
         <footer className="site-footer"><span>Dearplume ♡ made for the people who matter.</span><span>Private by default · Share with care</span></footer>
       </div>
 
-      {openNote && <Modal title={openNote.title} eyebrow="A NOTE FROM THE HEART" onClose={() => setOpenId(null)} wide><div className="view-note-layout">{photoUrls[openNote.id] && <img className="view-note-photo" src={photoUrls[openNote.id]} alt="Attached memory"/>}<div className="view-note-text">{openNote.message}</div>{openNote.musicLink && parseExternalMusicLink(openNote.musicLink) && <ExternalMusicPlayer music={parseExternalMusicLink(openNote.musicLink)!} compact />}{musicUrls[openNote.id] && <div className="music-attached"><div className="music-attachment-title"><Music2 size={17}/>{openNote.musicName || "Attached MP3"}</div><audio controls preload="none" src={musicUrls[openNote.id]} aria-label="Listen to attached music"/></div>}</div><p className="muted-small">Created {formatDate(openNote.createdAt)} · Updated {formatDate(openNote.updatedAt)}</p><div className="modal-actions stretch"><button className="button dangerous-ghost" type="button" onClick={() => setConfirmAction({ kind: "delete", id: openNote.id })}><Trash2 size={16}/> Delete</button><button className="button secondary" type="button" onClick={() => startEditing(openNote)}><Pencil size={16}/> Edit</button><button className="button primary" type="button" onClick={() => openShare(openNote)}><Send size={16}/> Share this note</button></div></Modal>}
+      {openNote && <Modal title={openNote.title} eyebrow="A NOTE FROM THE HEART" onClose={() => setOpenId(null)} wide><div className="view-note-layout">{messagePhotos(openNote).length > 0 && <div className="view-note-gallery">
+            {messagePhotos(openNote).map((photo, index) => <div key={photo.id} className="view-gallery-cell">
+              {photoUrls[openNote.id]?.[photo.id] && <img className="view-note-photo" src={photoUrls[openNote.id][photo.id]} alt={`Attached memory ${index + 1}`} />}
+              {photo.id === selectedMainPhoto(openNote)?.id && <span>♡ Main ASCII</span>}
+            </div>)}
+          </div>}<div className="view-note-text">{openNote.message}</div>{openNote.musicLink && parseExternalMusicLink(openNote.musicLink) && <ExternalMusicPlayer music={parseExternalMusicLink(openNote.musicLink)!} compact />}{musicUrls[openNote.id] && <div className="music-attached"><div className="music-attachment-title"><Music2 size={17}/>{openNote.musicName || "Attached MP3"}</div><audio controls preload="none" src={musicUrls[openNote.id]} aria-label="Listen to attached music"/></div>}</div><p className="muted-small">Created {formatDate(openNote.createdAt)} · Updated {formatDate(openNote.updatedAt)}</p><div className="modal-actions stretch"><button className="button dangerous-ghost" type="button" onClick={() => setConfirmAction({ kind: "delete", id: openNote.id })}><Trash2 size={16}/> Delete</button><button className="button secondary" type="button" onClick={() => startEditing(openNote)}><Pencil size={16}/> Edit</button><button className="button primary" type="button" onClick={() => openShare(openNote)}><Send size={16}/> Share this note</button></div></Modal>}
 
-      {shareNote && <Modal title="Send a little magic" eyebrow="PRIVATE ENCRYPTED SHARING" onClose={() => { if (!shareBusy) setShareId(null); }} wide><div className="share-explainer"><LockKeyhole size={19}/><div><strong>Just for someone special</strong><p>Only this note is shared. Your picture starts as ASCII, then reveals a compressed color copy after typing. That small copy is encrypted and stored as part of the shared snapshot in your private Vercel Blob store; your full-resolution photo stays on this device. The copied URL contains only a short reference. YouTube/Spotify songs are linked, not downloaded; the receiver chooses when to load the player. Uploaded MP3s are stored encrypted in private Blob too. Short-link sharing requires a connected private Blob store.</p></div></div>{shareNote.musicLink && parseExternalMusicLink(shareNote.musicLink) && <div className="music-share-notice"><Music2 size={17}/><span>{externalMusicLabel(parseExternalMusicLink(shareNote.musicLink)!)} link attached. No MP3 will be uploaded; the receiver can play it using the official embedded player.</span></div>}{shareNote.music && <div className="music-share-notice"><Music2 size={17}/><span>MP3 attached: {shareNote.musicName || "soundtrack"} · encrypted and uploaded privately when you generate this link.</span></div>}<div className="share-fields"><div className="field-group"><label htmlFor="share-duration">Link expires after</label><div className="inline-fields"><input id="share-duration" className="text-input" type="number" min="1" max="365" value={shareValue} onChange={(e) => { setShareValue(Number(e.target.value)); setCredentials(null); }}/><select className="text-input" value={shareUnit} onChange={(e) => { setShareUnit(e.target.value as ShareUnit); setCredentials(null); }}><option value="minutes">Minutes</option><option value="hours">Hours</option><option value="days">Days</option></select></div><span className="field-hint">Maximum lifetime: 90 days. Separate from local note retention.</span></div><div className="field-group"><label htmlFor="share-password">Unlock password</label><div className="password-field"><input id="share-password" className="text-input" type="text" autoComplete="off" maxLength={256} placeholder="At least 12 characters" value={sharePassword} onChange={(e) => { setSharePassword(e.target.value); setCredentials(null); }}/><button type="button" className="inline-action" onClick={() => { setSharePassword(randomString(12)); setCredentials(null); }}><WandSparkles size={15}/> Generate</button></div></div><div className="field-group"><label>Auto-generated access salt</label><div className="password-field"><input className="text-input" readOnly value={shareSalt} aria-label="Access salt"/><button type="button" className="inline-action" onClick={() => { setShareSalt(randomString(16)); setCredentials(null); }} title="Generate a fresh salt"><RefreshCcw size={16}/> New</button></div><span className="field-hint">Your recipient needs both the password and this salt.</span></div></div>{shareError && <div className="error-message" role="alert">{shareError}</div>}{!credentials ? <button className="button primary full-width" type="button" disabled={shareBusy} onClick={generateShare}><LockKeyhole size={17}/> {shareBusy ? "Creating encrypted note..." : "Generate & copy protected link"}</button> : <div className="result-panel"><div className="result-title"><Check size={20}/> Your protected link is ready!</div><div className="copy-grid"><button type="button" className="button secondary" onClick={() => copyValue(credentials.url, "Link")}><Copy size={16}/> Copy link</button><button type="button" className="button secondary" onClick={() => copyValue(credentials.password, "Password")}><KeyRound size={16}/> Copy password</button><button type="button" className="button secondary" onClick={() => copyValue(credentials.accessSalt, "Salt")}><Copy size={16}/> Copy salt</button></div><div className="expires-text"><Clock3 size={14}/> Expires {formatDate(credentials.expiresAt)} (PHT)</div><button className="button download-button" type="button" onClick={() => downloadText(shareToMarkdown(credentials), `dearplume-${shareNote.title.toLowerCase().replace(/[^a-z0-9]+/g,"-").slice(0,45) || "note"}.md`, "text/markdown")}><FileDown size={17}/> Export sharing details as Markdown (.md)</button>{asciiPreview && <details className="ascii-details"><summary>Preview your ASCII picture</summary><pre>{asciiPreview}</pre></details>}<p className="credentials-warning">Keep the Markdown file private: it contains the link and both unlocking credentials.</p></div>}</Modal>}
+      {shareNote && <Modal title="Send a little magic" eyebrow="PRIVATE ENCRYPTED SHARING" onClose={() => { if (!shareBusy) setShareId(null); }} wide><div className="share-explainer"><LockKeyhole size={19}/><div><strong>Just for someone special</strong><p>Only this note is shared. The selected main picture starts as ASCII. After typing, your encrypted photo previews cycle as a stacked slideshow. That small copy is encrypted and stored as part of the shared snapshot in your private Vercel Blob store; your full-resolution photo stays on this device. The copied URL contains only a short reference. YouTube/Spotify songs are linked, not downloaded; the receiver chooses when to load the player. Uploaded MP3s are stored encrypted in private Blob too. Short-link sharing requires a connected private Blob store.</p></div></div>{shareNote.musicLink && parseExternalMusicLink(shareNote.musicLink) && <div className="music-share-notice"><Music2 size={17}/><span>{externalMusicLabel(parseExternalMusicLink(shareNote.musicLink)!)} link attached. No MP3 will be uploaded; the receiver can play it using the official embedded player.</span></div>}{shareNote.music && <div className="music-share-notice"><Music2 size={17}/><span>MP3 attached: {shareNote.musicName || "soundtrack"} · encrypted and uploaded privately when you generate this link.</span></div>}<div className="share-fields"><div className="field-group"><label htmlFor="share-duration">Link expires after</label><div className="inline-fields"><input id="share-duration" className="text-input" type="number" min="1" max="365" value={shareValue} onChange={(e) => { setShareValue(Number(e.target.value)); setCredentials(null); }}/><select className="text-input" value={shareUnit} onChange={(e) => { setShareUnit(e.target.value as ShareUnit); setCredentials(null); }}><option value="minutes">Minutes</option><option value="hours">Hours</option><option value="days">Days</option></select></div><span className="field-hint">Maximum lifetime: 90 days. Separate from local note retention.</span></div><div className="field-group"><label htmlFor="share-password">Unlock password</label><div className="password-field"><input id="share-password" className="text-input" type="text" autoComplete="off" maxLength={256} placeholder="At least 12 characters" value={sharePassword} onChange={(e) => { setSharePassword(e.target.value); setCredentials(null); }}/><button type="button" className="inline-action" onClick={() => { setSharePassword(randomString(12)); setCredentials(null); }}><WandSparkles size={15}/> Generate</button></div></div><div className="field-group"><label>Auto-generated access salt</label><div className="password-field"><input className="text-input" readOnly value={shareSalt} aria-label="Access salt"/><button type="button" className="inline-action" onClick={() => { setShareSalt(randomString(16)); setCredentials(null); }} title="Generate a fresh salt"><RefreshCcw size={16}/> New</button></div><span className="field-hint">Your recipient needs both the password and this salt.</span></div></div>{shareError && <div className="error-message" role="alert">{shareError}</div>}{!credentials ? <button className="button primary full-width" type="button" disabled={shareBusy} onClick={generateShare}><LockKeyhole size={17}/> {shareBusy ? "Creating encrypted note..." : "Generate & copy protected link"}</button> : <div className="result-panel"><div className="result-title"><Check size={20}/> Your protected link is ready!</div><div className="copy-grid"><button type="button" className="button secondary" onClick={() => copyValue(credentials.url, "Link")}><Copy size={16}/> Copy link</button><button type="button" className="button secondary" onClick={() => copyValue(credentials.password, "Password")}><KeyRound size={16}/> Copy password</button><button type="button" className="button secondary" onClick={() => copyValue(credentials.accessSalt, "Salt")}><Copy size={16}/> Copy salt</button></div><div className="expires-text"><Clock3 size={14}/> Expires {formatDate(credentials.expiresAt)} (PHT)</div><button className="button download-button" type="button" onClick={() => downloadText(shareToMarkdown(credentials), `dearplume-${shareNote.title.toLowerCase().replace(/[^a-z0-9]+/g,"-").slice(0,45) || "note"}.md`, "text/markdown")}><FileDown size={17}/> Export sharing details as Markdown (.md)</button>{asciiPreview && <details className="ascii-details"><summary>Preview your ASCII picture</summary><pre>{asciiPreview}</pre></details>}<p className="credentials-warning">Keep the Markdown file private: it contains the link and both unlocking credentials.</p></div>}</Modal>}
 
       {showSettings && <Modal title="Make it feel like you" eyebrow="YOUR LITTLE PREFERENCES" onClose={() => setShowSettings(false)} wide><div className="settings-grid"><section className="settings-section"><h3><Clock3 size={18}/> Local note retention</h3><p>Only notes stored in this browser. When enabled, older notes are automatically deleted based on creation date.</p><div className="field-group"><label htmlFor="local-mode">Keep notes</label><select id="local-mode" className="text-input" value={settingsDraft.localRetention.mode} onChange={(e) => setSettingsDraft((s) => ({ ...s, localRetention: { ...s.localRetention, mode: e.target.value as "never" | "after" } }))}><option value="never">Forever (until manually deleted)</option><option value="after">For a limited time</option></select></div>{settingsDraft.localRetention.mode === "after" && <div className="inline-fields"><input className="text-input" type="number" min="1" max="365" aria-label="Local retention number" value={settingsDraft.localRetention.value} onChange={(e) => setSettingsDraft((s) => ({ ...s, localRetention: { ...s.localRetention, value: Number(e.target.value) } }))}/><select className="text-input" aria-label="Local retention unit" value={settingsDraft.localRetention.unit} onChange={(e) => setSettingsDraft((s) => ({ ...s, localRetention: { ...s.localRetention, unit: e.target.value as "days" | "weeks" | "months" } }))}><option value="days">Days</option><option value="weeks">Weeks</option><option value="months">Months (30 days)</option></select></div>}</section><section className="settings-section"><h3><LockKeyhole size={18}/> Shared link retention</h3><p>Default for new links only. Changing this does not extend links already sent.</p><div className="inline-fields"><input className="text-input" type="number" min="1" max="365" aria-label="Default share expiration number" value={settingsDraft.shareRetention.value} onChange={(e) => setSettingsDraft((s) => ({ ...s, shareRetention: { ...s.shareRetention, value: Number(e.target.value) } }))}/><select className="text-input" aria-label="Default share expiration unit" value={settingsDraft.shareRetention.unit} onChange={(e) => setSettingsDraft((s) => ({ ...s, shareRetention: { ...s.shareRetention, unit: e.target.value as ShareUnit } }))}><option value="minutes">Minutes</option><option value="hours">Hours</option><option value="days">Days</option></select></div><span className="field-hint">Up to 90 days in total.</span></section><section className="settings-section"><h3><Pencil size={18}/> Typing speed</h3><p>How quickly a shared message appears, one character at a time.</p><input className="range-slider" type="range" min="10" max="150" step="5" value={settingsDraft.typingSpeedMs} onChange={(e) => setSettingsDraft((s) => ({ ...s, typingSpeedMs: Number(e.target.value) }))}/><div className="range-ends"><span>Fast</span><strong>{settingsDraft.typingSpeedMs} ms / character</strong><span>Slow</span></div></section><section className="settings-section"><h3><Sparkles size={18}/> Background colors</h3><p>Pick the colors that feel most like you.</p><div className="color-row"><label htmlFor="background-color">Page background</label><div className="color-control"><input id="background-color" type="color" value={settingsDraft.backgroundColor} onChange={(e) => setSettingsDraft((s) => ({ ...s, backgroundColor: e.target.value }))}/><code>{settingsDraft.backgroundColor.toUpperCase()}</code></div></div><div className="color-row"><label htmlFor="flying-color">Flying objects</label><div className="color-control"><input id="flying-color" type="color" value={settingsDraft.flyingColor} onChange={(e) => setSettingsDraft((s) => ({ ...s, flyingColor: e.target.value }))}/><code>{settingsDraft.flyingColor.toUpperCase()}</code></div></div></section><section className="settings-section">
           <h3><ImagePlus size={18}/> Message placement</h3>
@@ -329,9 +376,9 @@ export default function DearplumeApp() {
             </select>
           </div>
         </section>
-        <section className="settings-section wide-setting"><h3><Heart size={18}/> Pick your flying object</h3><p>The little icons float from the bottom-right of the page toward the upper-left. Their color also controls the app&apos;s pink text and accent colors.</p><div className="icon-picker">{FLYING_ICONS.map((name) => { const Item = DECORATIONS[name as FlyingIconName]; return <button className={`pick-icon ${settingsDraft.flyingIcon === name ? "chosen" : ""}`} type="button" key={name} title={name} aria-label={`Flying ${name}`} aria-pressed={settingsDraft.flyingIcon === name} onClick={() => setSettingsDraft((s) => ({ ...s, flyingIcon: name }))}><Item size={23} /><span>{name}</span></button>; })}</div></section></div><div className="modal-actions"><button className="button secondary" type="button" onClick={() => setShowSettings(false)}>Cancel</button><button className="button primary" type="button" onClick={applySettings}><Check size={17}/> Save preferences</button></div><div className="settings-data-section"><h3>Your local data</h3><p>Back up all notes, original pictures, music links, and MP3 files to a JSON file, or import an earlier backup. These backups are not encrypted.</p><div className="data-actions"><button type="button" className="button secondary" disabled={busy} onClick={backup}><Download size={16}/> Export JSON backup</button><label className={`button secondary file-label ${busy ? "is-disabled" : ""}`}><Upload size={16}/> Import JSON backup<input type="file" accept=".json,application/json" onChange={restore} disabled={busy}/></label><button type="button" className="button dangerous-ghost" onClick={() => { setShowSettings(false); setConfirmAction({ kind: "clear" }); }}><Trash2 size={16}/> Clear local data</button></div></div></Modal>}
+        <section className="settings-section wide-setting"><h3><Heart size={18}/> Pick your flying object</h3><p>The little icons float from the bottom-right of the page toward the upper-left. Their color also controls the app&apos;s pink text and accent colors.</p><div className="icon-picker">{FLYING_ICONS.map((name) => { const Item = DECORATIONS[name as FlyingIconName]; return <button className={`pick-icon ${settingsDraft.flyingIcon === name ? "chosen" : ""}`} type="button" key={name} title={name} aria-label={`Flying ${name}`} aria-pressed={settingsDraft.flyingIcon === name} onClick={() => setSettingsDraft((s) => ({ ...s, flyingIcon: name }))}><Item size={23} /><span>{name}</span></button>; })}</div></section></div><div className="modal-actions"><button className="button secondary" type="button" onClick={() => setShowSettings(false)}>Cancel</button><button className="button primary" type="button" onClick={applySettings}><Check size={17}/> Save preferences</button></div><div className="settings-data-section"><h3>Your local data</h3><p>Back up all notes, complete picture collections, main selections, music links, and MP3 files to a JSON file, or import an earlier backup. These backups are not encrypted.</p><div className="data-actions"><button type="button" className="button secondary" disabled={busy} onClick={backup}><Download size={16}/> Export JSON backup</button><label className={`button secondary file-label ${busy ? "is-disabled" : ""}`}><Upload size={16}/> Import JSON backup<input type="file" accept=".json,application/json" onChange={restore} disabled={busy}/></label><button type="button" className="button dangerous-ghost" onClick={() => { setShowSettings(false); setConfirmAction({ kind: "clear" }); }}><Trash2 size={16}/> Clear local data</button></div></div></Modal>}
 
-      {confirmAction && <Modal title={confirmAction.kind === "clear" ? "Clear your little library?" : "Delete this note?"} eyebrow="PLEASE CONFIRM" onClose={() => setConfirmAction(null)}><p className="confirm-text">{confirmAction.kind === "clear" ? "This deletes all notes, original pictures, music links, MP3 files, and preferences saved in this browser. This cannot be undone unless you exported a backup." : "This note and its attached picture will be removed from this device. Existing encrypted links cannot be revoked this way."}</p><div className="modal-actions"><button className="button secondary" type="button" onClick={() => setConfirmAction(null)}><ArrowLeft size={16}/> Keep it</button><button className="button danger" type="button" onClick={confirmDelete}><Trash2 size={16}/> Yes, delete</button></div></Modal>}
+      {confirmAction && <Modal title={confirmAction.kind === "clear" ? "Clear your little library?" : "Delete this note?"} eyebrow="PLEASE CONFIRM" onClose={() => setConfirmAction(null)}><p className="confirm-text">{confirmAction.kind === "clear" ? "This deletes all notes, original pictures, music links, MP3 files, and preferences saved in this browser. This cannot be undone unless you exported a backup." : "This note and all its attached pictures will be removed from this device. Existing encrypted links cannot be revoked this way."}</p><div className="modal-actions"><button className="button secondary" type="button" onClick={() => setConfirmAction(null)}><ArrowLeft size={16}/> Keep it</button><button className="button danger" type="button" onClick={confirmDelete}><Trash2 size={16}/> Yes, delete</button></div></Modal>}
 
       {feedback && <div className="toast-message" role="status"><Sparkles size={17}/> {feedback}<button type="button" onClick={() => setFeedback("")} aria-label="Dismiss message"><X size={15}/></button></div>}
     </main>

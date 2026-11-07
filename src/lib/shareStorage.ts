@@ -4,7 +4,7 @@ import { randomBytes } from "node:crypto";
 
 /** Opaque references resolve to encrypted tokens, never plaintext note data. */
 const PREFIX = "dearplume/shares/";
-const MAX_TOKEN_LENGTH = 25_000;
+const MAX_TOKEN_LENGTH = 180_000;
 // Expiration is public metadata; the random 144-bit ID cannot be guessed.
 const ID_PATTERN = /^r_(\d{13})_([A-Za-z0-9_-]{24})$/;
 

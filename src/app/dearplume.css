@@ -335,3 +335,30 @@
 .shared-music-dock-panel.youtube-dock.is-collapsed .external-music-hint,
 .shared-music-dock-panel.youtube-dock.is-collapsed .external-music-source { display: none; }
 .youtube-mini-caption { font-size: 10px; color: var(--accent-text); margin: 6px 0 0; line-height: 1.35; }
+
+/* v0.1.9 — multi-photo composer and infinite stacked memories. */
+.photo-gallery-picker { margin-top: 14px; padding: 13px; border-radius: 14px; background: var(--accent-soft); border: 1px solid var(--accent-border); }
+.photo-gallery-picker > p { margin: 0 0 12px; font-size: 11px; color: var(--accent-text); line-height: 1.5; }
+.photo-picker-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(105px, 1fr)); gap: 10px; }
+.photo-picker-item { min-width: 0; position: relative; overflow: hidden; padding: 5px; border: 2px solid #fff; border-radius: 10px; background: #fff; box-shadow: 0 3px 12px #0000000d; }
+.photo-picker-item.selected { border-color: var(--accent); }
+.photo-picker-item img { width: 100%; height: 100px; object-fit: cover; display: block; border-radius: 6px; }
+.photo-main-select { width: 100%; min-height: 29px; margin-top: 5px; background: var(--accent-soft); border: 1px solid var(--accent-border); border-radius: 7px; color: var(--accent-text); font: inherit; font-size: 10px; font-weight: 800; cursor: pointer; }
+.photo-picker-item.selected .photo-main-select { color: #fff; background: var(--accent-button); }
+.photo-remove { position: absolute; top: 8px; right: 8px; background: #fffc; border: 1px solid #fff; color: #824960; border-radius: 50%; display: grid; place-items: center; width: 23px; height: 23px; cursor: pointer; }
+.photo-gallery-picker .field-hint { display: block; margin-top: 10px; }
+.view-note-gallery { display: grid; grid-template-columns: repeat(auto-fit, minmax(95px, 1fr)); gap: 9px; max-width: 100%; }
+.view-gallery-cell { position: relative; min-width: 0; }
+.view-gallery-cell .view-note-photo { width: 100%; height: 120px; object-fit: cover; }
+.view-gallery-cell > span { position: absolute; bottom: 5px; left: 5px; padding: 4px; border-radius: 5px; font-size: 9px; color: #fff; background: var(--accent-button); }
+.memory-stack-frame { overflow: hidden; }
+.memory-stack-frame .ascii-visual-frame { padding: 6px 15px 15px 6px; min-height: 155px; }
+.memory-stack { position: absolute; inset: 7px 17px 16px 7px; opacity: 0; pointer-events: none; transition: opacity .8s ease; }
+.memory-stack.is-revealed { opacity: 1; }
+.memory-stack-photo { position: absolute; inset: 0; display: block; width: 100%; height: 100%; padding: 5px; background: white; border: 1px solid color-mix(in srgb, var(--accent) 35%, #fff); border-radius: 7px; object-fit: contain; box-shadow: 0 5px 14px #402b382a; transition: transform .8s cubic-bezier(.22,.68,.2,1.05), opacity .8s ease; }
+.memory-stack-controls { display: flex; gap: 8px; align-items: center; justify-content: center; margin: 12px 0 0; color: var(--accent-text); font-size: 11px; font-weight: 700; }
+.memory-stack-controls button { display: inline-grid; place-items: center; width: 31px; height: 29px; border: 1px solid var(--accent-border); border-radius: 8px; background: white; color: var(--accent-text); cursor: pointer; }
+.memory-stack-controls button:hover { background: var(--accent-soft); }
+.memory-stack-controls span { min-width: 45px; text-align: center; }
+@media (prefers-reduced-motion: reduce) { .memory-stack, .memory-stack-photo { transition: none; } }
+@media (max-width: 700px) { .memory-stack-frame .ascii-visual-frame { padding: 7px 11px 14px 5px; } }

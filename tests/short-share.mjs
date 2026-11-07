@@ -4,6 +4,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import vm from 'node:vm';
 import { createRequire } from 'node:module';
+import { randomBytes } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 
 const nodeRequire = createRequire(import.meta.url);
@@ -83,5 +84,33 @@ function load(file) {
   await assert.rejects(()=>resolveSharedToken(expired),/expired/);
   assert.equal(await purgeExpiredShares(),1);
   assert(![...blobs.keys()].some(key=>key.endsWith('/'+expired.split('_').slice(2).join('_')+'.txt')));
-  console.log('PASS: short-link creation/unlock, layout settings validation, encrypted persistence, wrong-password rejection, expiry, cleanup and legacy compatibility.');
+  // v0.1.9 gallery: selected main image remains index 3, and eight
+  // color previews stay in private Blob (never in the short reference).
+  const gallery = Array.from({ length: 8 }, () => 'data:image/webp;base64,' + randomBytes(3900).toString('base64'));
+  const galleryBody = { ...createBody, note: { ...createBody.note, photos: gallery, mainPhotoIndex: 3 } };
+  const galleryResponse = await route.POST(new Request('http://localhost/api/message-share', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(galleryBody)}));
+  assert.equal(galleryResponse.status, 200);
+  const galleryResult = await galleryResponse.json();
+  assert(isShareReference(galleryResult.id));
+  const galleryCiphertext = await resolveSharedToken(galleryResult.id);
+  assert(galleryCiphertext.length > 25_000, 'exercise expanded encrypted token size');
+  assert(!galleryResult.id.includes('data:image'));
+  const galleryDecrypted = decryptShare(galleryCiphertext, password, accessSalt);
+  assert.equal(galleryDecrypted.note.photos.length, 8);
+  assert.equal(galleryDecrypted.note.mainPhotoIndex, 3);
+  assert.deepEqual(galleryDecrypted.note.photos, gallery);
+  const invalidIndex = await route.POST(new Request('http://localhost/api/message-share', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({...galleryBody,note:{...galleryBody.note,mainPhotoIndex:8}})}));
+  assert.equal(invalidIndex.status, 400);
+  const invalidCount = await route.POST(new Request('http://localhost/api/message-share', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({...galleryBody,note:{...galleryBody.note,photos:[...gallery,'data:image/webp;base64,AAAA']}})}));
+  assert.equal(invalidCount.status, 400);
+  // Older single-image shares continue using photoDataUrl.
+  const legacyPhotoShare = {...payload,note:{...payload.note,photoDataUrl:'data:image/webp;base64,AAAA'}};
+  assert.equal(decryptShare(encryptShare(legacyPhotoShare,password,accessSalt),password,accessSalt).note.photoDataUrl,legacyPhotoShare.note.photoDataUrl);
+  const {messagePhotos,selectedMainPhoto} = load('src/types/message.ts');
+  const legacyLocal = {photo:new Blob(['legacy-photo'])};
+  assert.equal(messagePhotos(legacyLocal).length,1);
+  assert.equal(selectedMainPhoto(legacyLocal).id,'legacy-main');
+  const nextLocal = {photos:[{id:'first',blob:new Blob(['a'])},{id:'second',blob:new Blob(['b'])}],mainPhotoId:'second'};
+  assert.equal(selectedMainPhoto(nextLocal).id,'second');
+  console.log('PASS: share security, eight-photo gallery, chosen ASCII main, validation, legacy local/photo/token compatibility, expiry and cleanup.');
 })().catch(e=>{console.error(e);process.exitCode=1});

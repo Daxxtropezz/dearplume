@@ -1,3 +1,13 @@
+## v0.1.9 — Multiple-photo memories
+
+- Added multi-select picture attachment with eight-photo and size limits.
+- Added an explicit **Main ASCII** photo selection, plus editor thumbnails and removal.
+- Added a looping, layered photo stack that starts **only after** typing completes; replay resets it.
+- Added slideshow pause/next/previous controls and reduced-motion transition support.
+- Updated local IndexedDB models, import/export backups, and recipient view without removing legacy single-photo compatibility.
+- Extended encrypted private-Blob shares for an array of validated, downsized previews.
+- No new environment variables or dependencies.
+
 # Dearplume Patch Notes
 
 ## v0.1.8 — Left-aligned music dock and persistent playback (2026-11-07)
