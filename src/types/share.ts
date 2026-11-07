@@ -2,6 +2,15 @@ import type { SharedAppearance } from "./settings";
 import type { ExternalMusic } from "@/lib/externalMusic";
 
 export const MAX_SHARED_PHOTO_DATA_URL_LENGTH = 12_000;
+export const MAX_SHARED_PHOTOS = 8;
+export const MAX_SHARED_PHOTOS_TOTAL_LENGTH = 80_000;
+/** Photos are encoded as small previews inside the encrypted Blob snapshot. */
+export function isSharedGallery(value: unknown, mainPhotoIndex: unknown): value is string[] {
+  return Array.isArray(value) && value.length > 0 && value.length <= MAX_SHARED_PHOTOS &&
+    value.every((image) => isSharedPhotoDataUrl(image)) &&
+    value.reduce((total: number, image: string) => total + image.length, 0) <= MAX_SHARED_PHOTOS_TOTAL_LENGTH &&
+    Number.isInteger(mainPhotoIndex) && Number(mainPhotoIndex) >= 0 && Number(mainPhotoIndex) < value.length;
+}
 
 /** Only canvas-produced raster images may be embedded in shared notes. */
 export function isSharedPhotoDataUrl(value: unknown): value is string {
@@ -20,6 +29,10 @@ export type SharedMessage = {
   asciiArt: string;
   /** Compressed, downscaled copy used only for the post-typing color reveal. */
   photoDataUrl?: string;
+  /** Ordered downscaled color photos. Legacy notes continue using photoDataUrl. */
+  photos?: string[];
+  /** Index of the chosen ASCII picture within photos. */
+  mainPhotoIndex?: number;
   /** Server-side pathname of an encrypted, private music blob (new shares only). */
   music?: { pathname: string; name: string };
   /** External provider and track ID only; never raw embed HTML. */

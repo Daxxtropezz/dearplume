@@ -2,7 +2,7 @@
 
 *A little note, a lot of heart.*
 
-Dearplume is a cute, local-first message maker for friends, crushes, and loved ones. Write a message, attach a picture, save it privately, then choose whether to send an encrypted, expiring link. Shared pictures first appear as ASCII art, then fade into a color photo when the message finishes typing.
+Dearplume is a cute, local-first message maker for friends, crushes, and loved ones. Write a message, attach pictures, choose your main ASCII image, save it privately, then choose whether to send an encrypted, expiring link. The chosen main picture appears as ASCII art, then all photo previews cycle in a layered slideshow after the message finishes typing.
 
 > **Dearplume is a separate application.** It takes inspiration from Dayflow's local-first, secure-link workflow but does not require or import Dayflow files.
 
@@ -78,7 +78,7 @@ This dependency is needed **at build time even if you only use external music li
 
 | Part | What it does |
 | --- | --- |
-| Create a note | Title, message, optional YouTube/Spotify track URL or MP3 (2 MB limit), and optional image (JPG/PNG/WebP/GIF, up to 6 MB) |
+| Create a note | Title, message, optional YouTube/Spotify track URL or MP3 (2 MB limit), and optional gallery of up to 8 images (JPG/PNG/WebP/GIF, 6 MB each, 24 MB total) |
 | Created notes | Appears after the first note is saved. View, edit, delete, share; cards show date and picture |
 | Private local storage | Uses browser **IndexedDB** for original notes and images; `localStorage` for preferences |
 | Settings | Gear icon next to the tabs: local note retention, **independent** default link expiration, typing speed, **message position**, **music player position**, page background, flying icon and color |
@@ -86,7 +86,7 @@ This dependency is needed **at build time even if you only use external music li
 | Local retention | Keep forever or auto-delete notes by creation age after a set number of days, weeks, or 30-day months |
 | Secure sharing | Share one selected note with an AES-256-GCM encrypted snapshot stored in private Blob, referenced by a short URL |
 | Password and salt | Enter a password (minimum 12 characters) or generate one. A fresh access salt is created automatically |
-| Shared view | Read-only unlock screen. After unlocking, the picture starts in ASCII and transitions to a color image when typing finishes; Show all triggers the reveal and Replay resets it |
+| Shared view | Read-only unlock screen. After unlocking, the chosen picture starts in ASCII. Once typing completes, all images rotate as a layered slideshow; Show all reveals them and Replay resets it |
 | Link expiration | Set minutes, hours, or days; maximum 90 days. The server enforces the expiration on unlock |
 | Markdown export | Download a `.md` file containing title, link, password, access salt, expiration time in PHT, and unlock instructions |
 | Private backups | Export and import JSON backups including the original photos. Clear Local Data with custom confirmation |
@@ -236,3 +236,14 @@ git push -u gh feat/dearplume-initial-release
 ```
 
 Replace `YOUR_USERNAME` with your actual GitHub username and create the empty repository first. If you already configured `gh`, skip `git remote add gh`.
+
+
+## Multiple pictures and animated memories (v0.1.9)
+
+- Choose up to **8 images per note** (PNG, JPG, WebP, GIF), up to **6 MB each and 24 MB combined**.
+- Pick one **Main ASCII** picture in the editor; other pictures are not converted to ASCII.
+- The main picture is shown as ASCII while the letter is being typed. Once the message finishes (or **Show all** is clicked), the main picture reveals in color and the gallery cycles as a **layered, repeating photo stack** every 3.5 seconds. The receiver can pause or move between photos; Replay resets the animation.
+- Original picture files stay in **IndexedDB**. Encrypted shares carry smaller, downscaled previews in a **private Vercel Blob snapshot**. They are not full-resolution images. No extra Blob store, credentials, or dependencies are needed beyond v0.1.8.
+- Notes and JSON backups from v0.1.8 are accepted, including the previous `photo` and `photoDataUrl` formats. Existing long and short share links still unlock.
+- The maximum encrypted shared token is now **180,000 characters** to accommodate up to 8 previews. Sharing large collections requires an available private Blob store.
+- Local JSON exports include the entire photo collection and selected main photo, and are **not encrypted**. Large collections can produce large backups.

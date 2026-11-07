@@ -1,4 +1,4 @@
-/* eslint-disable @next/next/no-img-element */
+ 
 "use client";
 
 import { useEffect, useState, type CSSProperties, type FormEvent } from "react";
@@ -8,6 +8,7 @@ import type { SharePayload } from "@/types/share";
 import { DEFAULT_SETTINGS, formatDate } from "@/lib/defaults";
 import FlyingBackground from "./FlyingBackground";
 import ExternalMusicPlayer from "./ExternalMusicPlayer";
+import PhotoMemoryStack from "./PhotoMemoryStack";
 import { themeStyle } from "@/lib/theme";
 
 export default function SharedMessageView() {
@@ -89,8 +90,8 @@ export default function SharedMessageView() {
 
   const appearance = payload?.appearance || DEFAULT_SETTINGS;
   const complete = payload ? shownCharacters >= payload.note.message.length : false;
-  const hasColorPhoto = Boolean(payload?.note.photoDataUrl);
-  const photoRevealed = complete && hasColorPhoto;
+  const sharedPhotos = payload?.note.photos?.length ? payload.note.photos : payload?.note.photoDataUrl ? [payload.note.photoDataUrl] : [];
+  const sharedMainPhotoIndex = payload?.note.photos?.length ? (payload.note.mainPhotoIndex ?? 0) : 0;
   const isSideBySide = appearance.messagePlacement === "right" && Boolean(payload?.note.asciiArt);
   const musicOnPicture = appearance.musicPlacement === "top-left" || appearance.musicPlacement === "top-right"; // top-right remains valid for older shares
   const hasMusic = Boolean(payload?.note.externalMusic || payload?.note.music);
@@ -157,13 +158,8 @@ export default function SharedMessageView() {
                       </div>
                     )}
                     {payload.note.asciiArt && (
-                      <div className={`ascii-art-frame${photoRevealed ? " photo-revealed" : ""}`}>
-                        <div className="ascii-top"><span>{photoRevealed ? "your picture, in full color" : "your little picture, in letters"}</span><span>{photoRevealed ? "♡ ORIGINAL MEMORY" : "♡ ASCII MEMORY"}</span></div>
-                        <div className="ascii-visual-frame">
-                          <pre role="img" aria-label="Photo represented as ASCII characters" aria-hidden={photoRevealed}>{payload.note.asciiArt}</pre>
-                          {payload.note.photoDataUrl && <img className="shared-color-photo" src={payload.note.photoDataUrl} alt="Shared picture revealed in color after the message finishes" aria-hidden={!photoRevealed} />}
-                        </div>
-                      </div>
+                      <PhotoMemoryStack key={`${animationCycle}-${payload.createdAt}`} photos={sharedPhotos} mainPhotoIndex={sharedMainPhotoIndex}
+                        asciiArt={payload.note.asciiArt} complete={complete} replayKey={animationCycle} />
                     )}
 
                   </div>

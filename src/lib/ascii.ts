@@ -36,10 +36,9 @@ export async function photoToAscii(photo: Blob): Promise<string> {
 
 /**
  * Create a small, raster-only image to reveal after typing finishes.
- * Full-resolution photos stay in local IndexedDB. Because a share is embedded
- * in a URL (no file server/database), this version must fit a strict byte budget.
+ * Full-resolution photos stay in local IndexedDB. Private shares use Blob storage, but per-image budgets still limit sharing costs.
  */
-export async function photoToSharedPreview(photo: Blob): Promise<string> {
+export async function photoToSharedPreview(photo: Blob, maxLength = 12_000): Promise<string> {
   const url = URL.createObjectURL(photo);
   try {
     const image = new Image();
@@ -67,7 +66,7 @@ export async function photoToSharedPreview(photo: Blob): Promise<string> {
         if (!preview.startsWith("data:image/webp;base64,")) {
           preview = canvas.toDataURL("image/jpeg", quality);
         }
-        if (preview.length <= 12_000) return preview;
+        if (preview.length <= maxLength) return preview;
       }
     }
     throw new Error("This picture could not fit in a protected link. Try a simpler picture.");
