@@ -59,7 +59,7 @@ function load(file) {
   assert.deepEqual(decryptShare(await resolveSharedToken(shortRef),password,accessSalt),payload);
   assert.throws(()=>decryptShare(ciphertext,'not_the_password',accessSalt));
   assert.equal(await resolveSharedToken(ciphertext),ciphertext); // legacy full URL token
-  const createBody={action:'create',note:{title:payload.note.title,message:payload.note.message,asciiArt:payload.note.asciiArt,externalMusic:payload.note.externalMusic},appearance:{...payload.appearance,messagePlacement:'right',musicPlacement:'top-right'},duration:{value:5,unit:'minutes'},password,accessSalt};
+  const createBody={action:'create',note:{title:payload.note.title,message:payload.note.message,asciiArt:payload.note.asciiArt,externalMusic:payload.note.externalMusic},appearance:{...payload.appearance,messagePlacement:'right',musicPlacement:'top-left'},duration:{value:5,unit:'minutes'},password,accessSalt};
   const create=await route.POST(new Request('http://localhost/api/message-share',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(createBody)}));
   assert.equal(create.status,200);
   const {id,expiresAt}=await create.json();
@@ -71,7 +71,10 @@ function load(file) {
   const unsealed=(await unlock.json()).payload;
   assert.equal(unsealed.note.title,payload.note.title);
   assert.equal(unsealed.appearance.messagePlacement,'right');
-  assert.equal(unsealed.appearance.musicPlacement,'top-right');
+  assert.equal(unsealed.appearance.musicPlacement,'top-left');
+  const oldPosition={...createBody,appearance:{...createBody.appearance,musicPlacement:'top-right'}};
+  const legacyPosition=await route.POST(new Request('http://localhost/api/message-share',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(oldPosition)}));
+  assert.equal(legacyPosition.status,200);
   const invalid=await route.POST(new Request('http://localhost/api/message-share',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({...createBody,appearance:{...createBody.appearance,musicPlacement:'fake-position'}})}));
   assert.equal(invalid.status,400);
   const wrong=await route.POST(new Request('http://localhost/api/message-share',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'unlock',token:id,password:'badpasswordhere',accessSalt})}));
@@ -79,6 +82,6 @@ function load(file) {
   const expired=await storeSharedToken(ciphertext,Date.now()-100);
   await assert.rejects(()=>resolveSharedToken(expired),/expired/);
   assert.equal(await purgeExpiredShares(),1);
-  assert(![...blobs.keys()].some(key=>key.includes(expired.split('_')[2])));
+  assert(![...blobs.keys()].some(key=>key.endsWith('/'+expired.split('_').slice(2).join('_')+'.txt')));
   console.log('PASS: short-link creation/unlock, layout settings validation, encrypted persistence, wrong-password rejection, expiry, cleanup and legacy compatibility.');
 })().catch(e=>{console.error(e);process.exitCode=1});

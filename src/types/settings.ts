@@ -13,7 +13,7 @@ export type AppSettings = {
   /** Where the recipient sees the message relative to the photo. */
   messagePlacement: "below" | "right";
   /** Where the soundtrack controls appear in the recipient view. */
-  musicPlacement: "below" | "top-right";
+  musicPlacement: "below" | "top-left" | "top-right"; // top-right accepted for legacy shares
 };
 /** Older encrypted links do not carry the optional layout fields. */
 export type SharedAppearance = Pick<AppSettings, "typingSpeedMs" | "backgroundColor" | "flyingIcon" | "flyingColor"> &
