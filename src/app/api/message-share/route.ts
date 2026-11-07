@@ -7,6 +7,7 @@ import { isSharedPhotoDataUrl } from "@/types/share";
 import { parseMusicDataUrl, storeMusic, deleteMusic } from "@/lib/musicStorage";
 import type { ShareUnit } from "@/types/settings";
 import { isExternalMusic } from "@/lib/externalMusic";
+import { storeSharedToken, resolveSharedToken } from "@/lib/shareStorage";
 
 export const runtime = "nodejs";
 const headers = { "Cache-Control": "no-store, max-age=0", "Referrer-Policy": "no-referrer", "X-Content-Type-Options": "nosniff" };
@@ -46,15 +47,16 @@ export async function POST(request: Request) {
         }
         const token = encryptShare(payload, body.password, body.accessSalt);
         if (token.length > 25_000) throw new Error("This note is too large for link sharing.");
-        return json({ token, expiresAt });
+        const id = await storeSharedToken(token, expiresAt);
+        return json({ id, expiresAt });
       } catch (error) {
         if (musicPath) await deleteMusic(musicPath).catch(() => {});
-        return json({ error: error instanceof Error && error.message.startsWith("Music sharing needs") ? error.message : "Could not create this link or store MP3. Check the private Blob configuration and note size." }, 400);
+        return json({ error: error instanceof Error && (error.message.startsWith("Music sharing needs") || error.message.startsWith("Short links need")) ? error.message : "Could not create a short link. Check private Blob access, deployment credentials, and available storage." }, 400);
       }
     }
     if (body.action === "unlock") {
       if (!isString(body.token, 25_000) || !isString(body.password, 256) || !isString(body.accessSalt, 128)) return json({ error: "Invalid credentials or share link." }, 400);
-      try { return json({ payload: decryptShare(body.token, body.password, body.accessSalt) }); }
+      try { const encryptedToken = await resolveSharedToken(body.token); return json({ payload: decryptShare(encryptedToken, body.password, body.accessSalt) }); }
       catch { return json({ error: "Unable to unlock. Check your password and salt, or the link may have expired." }, 403); }
     }
     return json({ error: "Unknown action." }, 400);

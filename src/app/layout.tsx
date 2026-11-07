@@ -3,7 +3,7 @@ import "./globals.css";
 import "./dearplume.css";
 
 export const metadata: Metadata = {
-  title: "Dearplume — little notes, a lot of heart",
+  title: "Dearplume: little notes, a lot of heart",
   description: "A private little space for heartfelt notes, favorite pictures, and password-protected sharing.",
   icons: { icon: "/dearplume-logo.svg" },
   robots: { index: false, follow: false },
