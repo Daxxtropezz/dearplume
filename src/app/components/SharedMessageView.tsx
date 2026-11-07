@@ -2,6 +2,7 @@
 "use client";
 
 import { useEffect, useState, type CSSProperties, type FormEvent } from "react";
+import Link from "next/link";
 import { ArrowLeft, Check, Heart, KeyRound, LockKeyhole, RefreshCcw, Send, ShieldCheck, Sparkles, Music2 } from "lucide-react";
 import type { SharePayload } from "@/types/share";
 import { DEFAULT_SETTINGS, formatDate } from "@/lib/defaults";
@@ -31,7 +32,6 @@ export default function SharedMessageView() {
 
   useEffect(() => {
     if (!payload) return;
-    setShownCharacters(0);
     const interval = window.setInterval(() => setShownCharacters((shown) => {
       if (shown >= payload.note.message.length) {
         window.clearInterval(interval);
@@ -58,6 +58,7 @@ export default function SharedMessageView() {
       });
       const result: { payload?: SharePayload; error?: string } = await response.json();
       if (!response.ok || !result.payload) throw new Error(result.error || "Unable to unlock this note.");
+      setShownCharacters(0);
       setPayload(result.payload);
       setMusicUrl("");
       setMusicError("");
@@ -92,7 +93,7 @@ export default function SharedMessageView() {
       <FlyingBackground appearance={appearance} />
       <div className="recipient-layout">
         <header className="recipient-header">
-          <a className="recipient-brand" href="/"><Heart size={24} fill="currentColor" /> dearplume<span>✳</span></a>
+          <Link className="recipient-brand" href="/"><Heart size={24} fill="currentColor" /> dearplume<span>✳</span></Link>
           <span><ShieldCheck size={14} /> a private little delivery</span>
         </header>
 
@@ -117,9 +118,9 @@ export default function SharedMessageView() {
                 <button className="button primary full-width" type="submit" disabled={isLoading}><LockKeyhole size={17} /> {isLoading ? "Opening your note..." : "Unlock my little note"}</button>
               </form>
             ) : (
-              <div className="error-message">This share link is missing its encrypted note. Ask the sender for the full link.</div>
+              <div className="error-message">This link is missing its share reference. Ask the sender for the full link.</div>
             )}
-            <a href="/" className="back-link"><ArrowLeft size={15} /> Make a note of your own</a>
+            <Link href="/" className="back-link"><ArrowLeft size={15} /> Make a note of your own</Link>
           </section>
         ) : (
           <section className="shared-note-wrap">
@@ -147,7 +148,7 @@ export default function SharedMessageView() {
                   </div>
                 </div>
               )}
-              {payload.note.externalMusic && <ExternalMusicPlayer music={payload.note.externalMusic} /> }
+              {payload.note.externalMusic && <ExternalMusicPlayer music={payload.note.externalMusic} autoStart /> }
               {payload.note.music && <div className="recipient-music"><div className="recipient-music-label"><Music2 size={17}/><span>Your little soundtrack: {payload.note.music.name}</span></div>{musicLoading ? <p>Preparing your music...</p> : musicUrl ? <audio controls loop preload="metadata" src={musicUrl} onLoadedMetadata={(event) => { event.currentTarget.volume = 0.5; }} aria-label="Background music — press play when ready"/> : <p>{musicError || "Soundtrack not available."}</p>}<small>Press play to listen while you read. Music loops until you pause it.</small></div>}
               <span className="eyebrow">A LITTLE SOMETHING TO REMEMBER</span>
               <h2>{payload.note.title}</h2>
@@ -158,11 +159,11 @@ export default function SharedMessageView() {
               <span>{complete ? "The whole message is yours ♡" : "A little story is unfolding..."}</span>
               <div>
                 {!complete && <button className="button secondary mini" onClick={() => setShownCharacters(payload.note.message.length)}>Show all</button>}
-                <button className="button secondary mini" onClick={() => setAnimationCycle((cycle) => cycle + 1)}><RefreshCcw size={14} /> Replay</button>
+                <button className="button secondary mini" onClick={() => { setShownCharacters(0); setAnimationCycle((cycle) => cycle + 1); }}><RefreshCcw size={14} /> Replay</button>
               </div>
             </div>
             <p className="shared-expiration">This link expires {formatDate(payload.expiresAt)} (PHT). Saving this page or a screenshot is still possible.</p>
-            <a className="button primary make-your-own" href="/"><Send size={16} /> Write your own little note</a>
+            <Link className="button primary make-your-own" href="/"><Send size={16} /> Write your own little note</Link>
           </section>
         )}
         <footer className="recipient-footer">Dearplume ♡ only shared with those who have the key.</footer>

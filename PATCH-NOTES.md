@@ -1,3 +1,23 @@
+# Dearplume Patch Notes
+
+## v0.1.6 — ESLint cleanup and React effect fixes (2026-11-07)
+- Fixed the 17 errors and one warning reported by ESLint on v0.1.5 without disabling application lint rules.
+- Made settings hydration wait for IndexedDB initialization, preserving the server-rendered defaults until browser settings load.
+- Updated picture/MP3 preview URL effects to publish object URLs asynchronously and revoke them during cleanup.
+- Reset the typing animation from unlock/replay actions instead of synchronously resetting React state in an effect.
+- Replaced internal `<a href="/">` navigation with Next.js `Link` and escaped JSX apostrophes.
+- Migrated the share test to ESM (`tests/short-share.mjs`); retained a minimal `.cjs` compatibility launcher so existing installs do not retain an old lint-failing test after applying the patch.
+- Added an expiration assertion to the share test; no changes to encrypted payloads, local storage keys, link formats, or required secrets.
+- Local encryption/short-link tests and TypeScript transpilation passed. Full lint/typecheck/build must be rerun after dependencies are installed.
+
+## v0.1.5 — Short encrypted links and compact streaming players (2026-11-07)
+- New links are short `/s#r_<expiration>_<random>` references, backed by an encrypted snapshot in private Vercel Blob storage. Existing long links continue to work.
+- Password and generated access salt still required; encryption and expiry are verified server-side. The original picture and note remain local until explicitly shared.
+- Private Blob storage is now required for every newly generated short link, not just uploaded MP3 files.
+- The daily protected cleanup endpoint now removes expired encrypted snapshots and MP3 objects; `CRON_SECRET` is still required. Expired shares are rejected immediately at unlock even if cleanup is delayed.
+- Streaming music UI uses a smaller panel. YouTube has Play/Pause and volume controls via the official IFrame API, with a visible 280 × 200 video viewport due to YouTube's minimum player dimensions. Spotify uses a compact 152px embed. After unlocking, provider embeds load and YouTube attempts playback only when more than half of its player is visible. Browsers may still block sound autoplay; the recipient is told to use Play.
+- Existing saved notes, passwords, salts, long links, MP3 files, backups, and settings remain compatible.
+
 ## v0.1.4 — YouTube and Spotify music links (2026-11-07)
 - Added optional YouTube (`youtu.be` and `youtube.com/watch`) and Spotify track (`open.spotify.com/track`) links as an alternative to MP3 uploads.
 - Music source selector in note creation/editing with link validation and an opt-in embedded-player preview.
@@ -7,7 +27,7 @@
 - Maintains compatibility with existing saved notes, older encrypted links, MP3s, JSON backups, and link expiration.
 - Fixed setup guidance for missing `@vercel/blob` package: run `npm install @vercel/blob@^2.8.2` from the project root.
 
-# Dearplume Patch Notes
+
 
 ## v0.1.3 — Theme-matched accents and background MP3
 - Pink accent text, buttons, tab states, icons and highlights now derive from the selected flying-object color, including recipient view.
@@ -17,7 +37,7 @@
 - Scheduled expired-MP3 cleanup endpoint authenticated with `CRON_SECRET`.
 - Backward-compatible with v0.1.2 local notes and share links.
 
-# Patch notes
+
 
 ## v0.1.2 — ASCII-to-color reveal (2026-11-07)
 
