@@ -1,5 +1,14 @@
 # Dearplume Patch Notes
 
+## v0.1.8 — Left-aligned music dock and persistent playback (2026-11-07)
+- Replaced the top-right picture overlay with a compact top-left control **above** the picture, so expanding it pushes the photo down instead of covering the artwork.
+- Collapsing the controls no longer unmounts the audio element or provider iframe. MP3 music continues until the recipient pauses it; Spotify may continue, subject to embed/browser behavior.
+- YouTube keeps its official 280 × 200 video visible after collapsing (only extra controls hide) because hidden/audio-only YouTube playback is not allowed by YouTube’s policies.
+- Renamed the stored `top-right` preference to `top-left` when loading local settings. Older encrypted shares with `top-right` also render the dock in the new left position.
+- The media player loads only after the recipient first opens the controls. Browser autoplay with sound and provider playback limits still apply.
+- New shares use `top-left` for dock placement; existing links, MP3 attachments, Spotify/YouTube IDs, passwords, salts, and stored notes need no migration.
+
+
 ## v0.1.7 — Layout preferences and floating music control (2026-11-07)
 - Added **Message placement** under Settings: below picture, or right of picture on desktop (automatically stacked on smaller screens).
 - Added **Music player placement** under Settings: below picture or a compact top-right button over the picture. The picture-corner control expands only when clicked; closing it unmounts and stops the embedded player.

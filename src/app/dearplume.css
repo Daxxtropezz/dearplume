@@ -288,7 +288,7 @@
 .external-music-player iframe.spotify-embed { height: 152px; min-width: 280px; }
 .external-music-hint { font-size: 10px; }
 
-/* v0.1.7 — recipient photo / letter layout and picture-corner music dock. */
+/* v0.1.8 — recipient photo / letter layout and top-left inline music dock. */
 .shared-note-wrap:has(.shared-content-layout.side-by-side) { width: min(100%, 900px); }
 .shared-content-layout { min-width: 0; }
 .shared-content-layout.side-by-side { display: grid; grid-template-columns: minmax(0, 47%) minmax(0, 1fr); align-items: start; gap: 24px; }
@@ -298,10 +298,10 @@
 .shared-content-layout.side-by-side .shared-message-column > .eyebrow { margin-top: 8px; }
 .shared-media-column .ascii-art-frame { margin: 3px auto 14px; }
 .shared-content-layout.side-by-side .ascii-art-frame pre { font-size: clamp(4px, .82vw, 7px); }
-.shared-music-dock { position: absolute; right: 9px; top: 52px; z-index: 6; }
+.shared-music-dock { position: relative; width: 100%; z-index: 2; display: flex; flex-direction: column; align-items: flex-start; gap: 8px; margin-bottom: 12px; }
 .shared-music-dock-toggle { display: inline-flex; align-items: center; gap: 7px; padding: 9px 12px; border-radius: 999px; border: 1px solid var(--accent-border); background: #fffcfffa; box-shadow: 0 6px 18px #6546582b; color: var(--accent-text); font-size: 11px; font-weight: 800; cursor: pointer; }
 .shared-music-dock-toggle:hover { background: var(--accent-soft); }
-.shared-music-dock-panel { position: absolute; right: 0; top: calc(100% + 8px); width: min(345px, calc(100vw - 52px)); z-index: 8; background: #fffdfa; padding: 7px; border: 1px solid var(--accent-border); box-shadow: 0 12px 35px #65465835; border-radius: 14px; }
+.shared-music-dock-panel { position: relative; width: min(345px, 100%); z-index: 2; background: #fffdfa; padding: 7px; border: 1px solid var(--accent-border); box-shadow: 0 12px 35px #65465835; border-radius: 14px; }
 .shared-music-dock-panel .external-music-player, .shared-music-dock-panel .recipient-music { margin: 0; max-width: none; transform: none; }
 .shared-music-dock-panel .external-music-source { margin-top: 8px; }
 .shared-message-column .external-music-player { margin: 4px auto 18px; }
@@ -309,5 +309,29 @@
 @media (max-width: 700px) {
   .shared-content-layout.side-by-side { display: block; }
   .shared-content-layout.side-by-side .ascii-art-frame pre { font-size: clamp(3.8px, 1.55vw, 8px); }
-  .shared-music-dock-panel { width: min(330px, calc(100vw - 72px)); }
+  .shared-music-dock-panel { width: min(330px, 100%); }
 }
+
+/* Collapsing only changes presentation: the player remains mounted.
+   YouTube must keep a visible video viewport, so collapse hides extra chrome only. */
+.shared-music-dock-panel.audio-dock.is-collapsed {
+  position: absolute;
+  width: min(345px, 100%);
+  height: 245px;
+  left: 0;
+  top: 0;
+  overflow: hidden;
+  opacity: 0;
+  pointer-events: none;
+  padding: 0;
+  margin: 0;
+  border: 0;
+  box-shadow: none;
+}
+.shared-music-dock-panel.youtube-dock.is-collapsed { width: min(296px, 100%); padding: 7px; box-shadow: none; }
+.shared-music-dock-panel.youtube-dock.is-collapsed .external-music-player { padding: 0; margin: 0; border: 0; background: transparent; }
+.shared-music-dock-panel.youtube-dock.is-collapsed .external-music-title,
+.shared-music-dock-panel.youtube-dock.is-collapsed .external-music-toolbar,
+.shared-music-dock-panel.youtube-dock.is-collapsed .external-music-hint,
+.shared-music-dock-panel.youtube-dock.is-collapsed .external-music-source { display: none; }
+.youtube-mini-caption { font-size: 10px; color: var(--accent-text); margin: 6px 0 0; line-height: 1.35; }
