@@ -6,6 +6,129 @@ Dearplume is a cute, local-first message maker for friends, crushes, and loved o
 
 > **Dearplume is a separate application.** It takes inspiration from Dayflow's local-first, secure-link workflow but does not require or import Dayflow files.
 
+
+## System Architecture: Encrypted URL Shortening
+
+Dearplume implements a **server-backed, reference-based URL shortening system** using Next.js API routes, AES-256-GCM encryption, PBKDF2-SHA256 key derivation, and private Vercel Blob storage.
+
+Instead of embedding the entire encrypted message in a URL, Dearplume stores the encrypted payload privately and generates a short, random reference ID.
+
+### Architecture Diagram
+
+```mermaid
+flowchart TD
+    A["Create and save a note locally"] --> B["Choose note and sharing settings"]
+    B --> C["Next.js API receives selected note"]
+    C --> D["Encrypt note using AES-256-GCM"]
+    D --> E["Store encrypted snapshot in private Vercel Blob"]
+    E --> F["Create random short reference ID"]
+    F --> G["Send short sharing link to recipient"]
+    G --> H["Recipient opens link and enters credentials"]
+    H --> I["Next.js API retrieves encrypted snapshot"]
+    I --> J{"Credentials valid and link not expired?"}
+    J -->|Yes| K["Decrypt and show read-only note"]
+    J -->|No| L["Deny access"]
+    M["Scheduled cleanup"] --> N["Delete expired encrypted snapshots"]
+    N --> E
+```
+
+### How It Works
+
+#### 1. Local Message Creation
+
+- Users create messages with text, photos, and optional background music.
+- Original messages and attachments are stored locally in the browser using IndexedDB.
+- No registration or cloud database is required for ordinary message management.
+
+#### 2. Encrypted Share Generation
+
+- The creator selects a message to share.
+- A password, generated access salt, and expiration period are configured.
+- Only the selected message and its shareable attachments are submitted to the Next.js API.
+- The server validates and encrypts the shared content using AES-256-GCM.
+- The encrypted snapshot is stored in private Vercel Blob storage.
+- A random reference ID is generated for the short link.
+
+#### 3. Short URL Generation
+
+**Previous format:**
+
+```text
+https://dearplume.jpsmiraflores.me/s#eyJ2IjoxLCJrIjoi...
+```
+
+**Current format:**
+
+```text
+https://dearplume.jpsmiraflores.me/s#r_1794052800000_a9KpT3n...
+```
+
+The new URL contains a reference to the encrypted data rather than the complete encrypted payload.
+
+The fragment identifier (`#r_...`) is processed by the browser and used to request the corresponding encrypted share through the Next.js API.
+
+#### 4. Recipient Authentication
+
+- The recipient opens the shared URL.
+- The application requests the password and access salt.
+- The Next.js API retrieves the encrypted snapshot from private Vercel Blob storage.
+- The server validates the credentials and expiration.
+- Invalid credentials, expired links, or tampered payloads are rejected.
+- Successful authentication unlocks the read-only message.
+
+#### 5. Message Presentation
+
+After successful decryption, the recipient can experience:
+
+- ASCII art converted from the selected main picture.
+- A customizable typing animation.
+- ASCII-to-photo transitions.
+- An infinitely looping photo slideshow.
+- Optional MP3, YouTube, or Spotify background music.
+- Custom themes, accent colors, and animated backgrounds.
+
+#### 6. Expiration and Cleanup
+
+- Share expiration is validated server-side.
+- Expired links cannot be unlocked.
+- A scheduled cleanup endpoint removes expired share objects from private storage.
+- Expiration cannot prevent recipients from saving content already accessed.
+- Individual early revocation requires server-managed state.
+
+### Architecture Components
+
+| Component | Technology | Responsibility |
+|---|---|---|
+| Frontend | Next.js, React, TypeScript | Message creation and presentation |
+| Local Storage | IndexedDB | Local messages, original photos, and attachments |
+| API Layer | Next.js Route Handlers | Share creation, lookup, and authentication |
+| Encryption | AES-256-GCM | Authenticated encryption of shared data |
+| Key Derivation | PBKDF2-SHA256 | Derivation of cryptographic keys |
+| Reference ID | Random opaque identifier | Identifies stored encrypted snapshots |
+| Object Storage | Private Vercel Blob | Encrypted message and media storage |
+| Access Protection | Password and access salt | Required credentials for unlocking |
+| Expiration | Server-side validation | Rejects expired shared links |
+| Cleanup | Scheduled serverless endpoint | Deletes expired stored content |
+
+### Security Model
+
+Dearplume follows a **local-first, selective-sharing architecture**.
+
+- Ordinary message data remains in the creator's browser.
+- Only explicitly shared content is uploaded.
+- Shared snapshots are encrypted before private storage.
+- Passwords and access salts are not included in generated URLs.
+- Server-side encryption secrets are never exposed through public environment variables.
+- A short reference ID does not grant access to decrypted content.
+- Expiration is enforced when the recipient attempts to unlock a share.
+- Original full-resolution photos remain local; shared links contain compressed photo previews.
+- Legacy encrypted URLs remain supported for backward compatibility.
+
+**Architecture Pattern:** Server-Backed, Reference-Based URL Shortening with Encrypted Object Storage.
+
+**Design Goal:** Provide short, password-protected, expiring sharing links without requiring user accounts or a traditional application database.
+
+
 ## What changed in v0.1.7 — Message placement and picture-corner music
 
 Settings → **Message placement** now lets you choose **Below the picture** or **To the right of the picture**. The side-by-side layout automatically stacks on mobile. Settings → **Music player placement** lets you choose **Below the picture** or a small, expandable **Top-left of the picture** music button placed above the picture. These choices are saved locally and embedded in *newly generated* protected shares. Previously generated top-right shares also display the new top-left dock. Closing the controls no longer unmounts the player: MP3 continues playing, Spotify may continue depending on its embed and browser, while YouTube keeps its video visible with extra controls collapsed. The player expands in normal page flow instead of covering the picture.
