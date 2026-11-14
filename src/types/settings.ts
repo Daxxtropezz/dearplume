@@ -10,6 +10,8 @@ export type AppSettings = {
   backgroundColor: string;
   flyingIcon: FlyingIconName;
   flyingColor: string;
+  /** Preferred text color. Dearplume auto-corrects contrast in rendered views. */
+  textColor: string;
   /** Where the recipient sees the message relative to the photo. */
   messagePlacement: "below" | "right";
   /** Where the soundtrack controls appear in the recipient view. */
@@ -17,4 +19,4 @@ export type AppSettings = {
 };
 /** Older encrypted links do not carry the optional layout fields. */
 export type SharedAppearance = Pick<AppSettings, "typingSpeedMs" | "backgroundColor" | "flyingIcon" | "flyingColor"> &
-  Partial<Pick<AppSettings, "messagePlacement" | "musicPlacement">>;
+  Partial<Pick<AppSettings, "messagePlacement" | "musicPlacement" | "textColor">>;

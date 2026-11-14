@@ -98,3 +98,12 @@ Collapsing the player retains its audio element or iframe and does not change en
 - The encrypted share token is limited to 180,000 characters, with a bounded decompression size.
 - Exports of private local notes are unencrypted, even if a link to the same content is protected.
 - Anyone holding the link, password, and salt before expiry can view or save all shared images.
+
+
+## Per-note expiration and custom text colors (v0.1.10)
+
+- Individual local expiration policies override the global note retention preference. Older notes without overrides still follow the global default.
+- Local cleanup only runs when Dearplume initializes or stays open (minute-based). It does not delete notes precisely at the deadline if the app is closed.
+- Local note deletion does **not** revoke existing encrypted Vercel Blob shares; those retain their own server-validated expiry.
+- Note expiration settings are included in plaintext JSON backups, which are not automatically deleted by Dearplume.
+- Theme text colors accept six-digit hex colors. Rendering targets at least a 4.5:1 contrast ratio for page and letter text separately; this is not an accessibility certification of every UI element.

@@ -1,6 +1,6 @@
 import { messagePhotos, MAX_LOCAL_PHOTO_BYTES, MAX_NOTE_PHOTOS, MAX_TOTAL_LOCAL_PHOTO_BYTES, type Message, type MessageBackup, type MessagePhoto } from "@/types/message";
 import type { AppSettings } from "@/types/settings";
-import { durationMs } from "./defaults";
+import { isNoteExpired, validNoteExpiration } from "./noteExpiration";
 import { parseExternalMusicLink, originalMusicUrl } from "./externalMusic";
 
 const DB_NAME = "dearplume-private-notes";
@@ -43,9 +43,8 @@ export async function clearMessages(): Promise<void> {
   await transaction("readwrite", (store) => store.clear());
 }
 export async function purgeExpiredMessages(settings: AppSettings): Promise<number> {
-  if (settings.localRetention.mode === "never") return 0;
-  const ttl = durationMs(settings.localRetention.value, settings.localRetention.unit);
-  const expired = (await listMessages()).filter((note) => Date.now() - note.createdAt >= ttl);
+  const now = Date.now();
+  const expired = (await listMessages()).filter((note) => isNoteExpired(note, settings, now));
   for (const note of expired) await removeMessage(note.id);
   return expired.length;
 }
@@ -78,6 +77,7 @@ export async function importBackup(raw: string): Promise<number> {
   const validated: Message[] = [];
   for (const entry of parsed.notes) {
     if (!entry || typeof entry !== "object" || typeof entry.id !== "string" || entry.id.length > 100 || !entry.id || typeof entry.title !== "string" || entry.title.length > 120 || typeof entry.message !== "string" || entry.message.length > 5000 || !Number.isFinite(entry.createdAt) || !Number.isFinite(entry.updatedAt)) throw new Error("Backup contains an invalid note.");
+    if (entry.localExpiration !== undefined && !validNoteExpiration(entry.localExpiration)) throw new Error("Backup contains an invalid note expiration.");
     let photo: Blob | undefined;
     if (entry.photoDataUrl !== undefined) {
       if (typeof entry.photoDataUrl !== "string" || entry.photoDataUrl.length > 9_000_000 || !/^data:image\/(png|jpeg|webp|gif);base64,/.test(entry.photoDataUrl)) throw new Error("Backup contains an invalid photo.");
@@ -117,7 +117,7 @@ export async function importBackup(raw: string): Promise<number> {
     if (entry.musicName !== undefined && (typeof entry.musicName !== "string" || entry.musicName.length > 160)) throw new Error("Invalid music filename.");
     if (entry.musicLink !== undefined && (typeof entry.musicLink !== "string" || !parseExternalMusicLink(entry.musicLink))) throw new Error("Backup has an invalid external music link.");
     if (music && entry.musicLink) throw new Error("A note can have either a song link or an MP3, not both.");
-    validated.push({ id: entry.id, title: entry.title, message: entry.message, createdAt: entry.createdAt, updatedAt: entry.updatedAt, photos, mainPhotoId: photos?.length ? entry.mainPhotoId : undefined, music, musicName: music ? (entry.musicName || "Attached music.mp3") : undefined, musicLink: entry.musicLink ? originalMusicUrl(parseExternalMusicLink(entry.musicLink)!) : undefined });
+    validated.push({ id: entry.id, title: entry.title, message: entry.message, createdAt: entry.createdAt, updatedAt: entry.updatedAt, ...(entry.localExpiration ? { localExpiration: entry.localExpiration } : {}), photos, mainPhotoId: photos?.length ? entry.mainPhotoId : undefined, music, musicName: music ? (entry.musicName || "Attached music.mp3") : undefined, musicLink: entry.musicLink ? originalMusicUrl(parseExternalMusicLink(entry.musicLink)!) : undefined });
   }
   for (const note of validated) await putMessage(note);
   return validated.length;

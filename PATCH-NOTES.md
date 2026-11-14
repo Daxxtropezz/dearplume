@@ -1,3 +1,18 @@
+## v0.1.10 — Personal note expiration and scrapbook themes (2026-11-14)
+
+- New per-note local expiration policy (inherit global / never / fixed duration), independent of encrypted link expiration.
+- Editing without changing a duration preserves the previously saved deadline.
+- Added backup import validation and export support for custom per-note expiration.
+- Added three color suggestions: Rose Letter, Moonlit Lilac and Sage Garden, plus custom background, flying object and text colors.
+- Adjusted rendered text contrast on colored page backgrounds and white paper without overwriting the selected color.
+- Included optional text color in new encrypted share appearance while accepting older links.
+- Added tape-like paper corners, irregular note-card edges and layered shadows.
+- Extended share tests for note expiration, color validation, accessibility contrast, presets and legacy compatibility.
+
+**Verification:** Share/expiration/color tests passed with global TypeScript. TS/TSX syntax checks and CSS parsing passed. Full Next.js build, typecheck, lint and browser validation still require local dependencies.
+
+---
+
 ## v0.1.9 — Multiple-photo memories
 
 - Added multi-select picture attachment with eight-photo and size limits.

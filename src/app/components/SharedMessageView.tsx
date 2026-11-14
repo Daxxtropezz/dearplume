@@ -1,4 +1,3 @@
- 
 "use client";
 
 import { useEffect, useState, type CSSProperties, type FormEvent } from "react";
@@ -102,7 +101,7 @@ export default function SharedMessageView() {
       : null;
 
   return (
-    <main className="site-shell recipient-shell" style={themeStyle(appearance.backgroundColor, appearance.flyingColor) as CSSProperties}>
+    <main className="site-shell recipient-shell" style={themeStyle(appearance.backgroundColor, appearance.flyingColor, appearance.textColor) as CSSProperties}>
       <FlyingBackground appearance={appearance} />
       <div className="recipient-layout">
         <header className="recipient-header">

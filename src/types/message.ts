@@ -3,12 +3,19 @@ export type MessagePhoto = { id: string; blob: Blob; name?: string };
 export const MAX_NOTE_PHOTOS = 8;
 export const MAX_LOCAL_PHOTO_BYTES = 6_000_000;
 export const MAX_TOTAL_LOCAL_PHOTO_BYTES = 24_000_000;
+import type { LocalUnit } from "./settings";
+/** A note-specific policy overrides Settings > Local note retention. */
+export type NoteExpiration =
+  | { mode: "never" }
+  | { mode: "after"; value: number; unit: LocalUnit; expiresAt: number };
 export type Message = {
   id: string;
   title: string;
   message: string;
   createdAt: number;
   updatedAt: number;
+  /** Absent means follow the global local retention policy; independent of share-link expiration. */
+  localExpiration?: NoteExpiration;
   /** Legacy v0.1.8 single photo; still readable without a migration. */
   photo?: Blob;
   /** Ordered image collection for v0.1.9 and later. */
