@@ -8,6 +8,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   backgroundColor: "#fff4f7",
   flyingIcon: "heart",
   flyingColor: "#e889aa",
+  textColor: "#513a48",
   messagePlacement: "right",
   musicPlacement: "top-left",
 };
@@ -42,6 +43,7 @@ export function loadSettings(): AppSettings {
       backgroundColor: isHexColor(raw.backgroundColor) ? raw.backgroundColor : DEFAULT_SETTINGS.backgroundColor,
       flyingIcon: validIcon ? raw.flyingIcon : "heart",
       flyingColor: isHexColor(raw.flyingColor) ? raw.flyingColor : DEFAULT_SETTINGS.flyingColor,
+      textColor: isHexColor(raw.textColor) ? raw.textColor : DEFAULT_SETTINGS.textColor,
       messagePlacement: raw.messagePlacement === "below" || raw.messagePlacement === "right" ? raw.messagePlacement : DEFAULT_SETTINGS.messagePlacement,
       musicPlacement: raw.musicPlacement === "top-right" ? "top-left" : raw.musicPlacement === "below" || raw.musicPlacement === "top-left" ? raw.musicPlacement : DEFAULT_SETTINGS.musicPlacement,
     };

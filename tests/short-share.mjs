@@ -39,6 +39,7 @@ function load(file) {
     if(name==='@vercel/blob') return fakeBlob;
     if(name==='next/server') return {NextResponse:{json:(data,opts={})=>Response.json(data,opts)}};
     if(name.startsWith('@/')) return load(`src/${name.slice(2)}.ts`);
+    if(name.startsWith('.')) return load(path.relative(base,path.resolve(path.dirname(absolute),name+'.ts')));
     return nodeRequire(name);
   };
   vm.runInThisContext(`(function(exports,require,module,process,Buffer,Blob,Request,Response){${js}\n})`,{filename:absolute})(mod.exports,req,mod,process,Buffer,Blob,Request,Response);
@@ -60,7 +61,7 @@ function load(file) {
   assert.deepEqual(decryptShare(await resolveSharedToken(shortRef),password,accessSalt),payload);
   assert.throws(()=>decryptShare(ciphertext,'not_the_password',accessSalt));
   assert.equal(await resolveSharedToken(ciphertext),ciphertext); // legacy full URL token
-  const createBody={action:'create',note:{title:payload.note.title,message:payload.note.message,asciiArt:payload.note.asciiArt,externalMusic:payload.note.externalMusic},appearance:{...payload.appearance,messagePlacement:'right',musicPlacement:'top-left'},duration:{value:5,unit:'minutes'},password,accessSalt};
+  const createBody={action:'create',note:{title:payload.note.title,message:payload.note.message,asciiArt:payload.note.asciiArt,externalMusic:payload.note.externalMusic},appearance:{...payload.appearance,messagePlacement:'right',musicPlacement:'top-left',textColor:'#624052'},duration:{value:5,unit:'minutes'},password,accessSalt};
   const create=await route.POST(new Request('http://localhost/api/message-share',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(createBody)}));
   assert.equal(create.status,200);
   const {id,expiresAt}=await create.json();
@@ -73,11 +74,14 @@ function load(file) {
   assert.equal(unsealed.note.title,payload.note.title);
   assert.equal(unsealed.appearance.messagePlacement,'right');
   assert.equal(unsealed.appearance.musicPlacement,'top-left');
+  assert.equal(unsealed.appearance.textColor,'#624052');
   const oldPosition={...createBody,appearance:{...createBody.appearance,musicPlacement:'top-right'}};
   const legacyPosition=await route.POST(new Request('http://localhost/api/message-share',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(oldPosition)}));
   assert.equal(legacyPosition.status,200);
   const invalid=await route.POST(new Request('http://localhost/api/message-share',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({...createBody,appearance:{...createBody.appearance,musicPlacement:'fake-position'}})}));
   assert.equal(invalid.status,400);
+  const invalidTextColor=await route.POST(new Request('http://localhost/api/message-share',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({...createBody,appearance:{...createBody.appearance,textColor:'pink'}})}));
+  assert.equal(invalidTextColor.status,400);
   const wrong=await route.POST(new Request('http://localhost/api/message-share',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'unlock',token:id,password:'badpasswordhere',accessSalt})}));
   assert.equal(wrong.status,403);
   const expired=await storeSharedToken(ciphertext,Date.now()-100);
@@ -112,5 +116,36 @@ function load(file) {
   assert.equal(selectedMainPhoto(legacyLocal).id,'legacy-main');
   const nextLocal = {photos:[{id:'first',blob:new Blob(['a'])},{id:'second',blob:new Blob(['b'])}],mainPhotoId:'second'};
   assert.equal(selectedMainPhoto(nextLocal).id,'second');
-  console.log('PASS: share security, eight-photo gallery, chosen ASCII main, validation, legacy local/photo/token compatibility, expiry and cleanup.');
+  const { buildNoteExpiration, isNoteExpired, noteExpiresAt, validNoteExpiration } = load('src/lib/noteExpiration.ts');
+  const { DEFAULT_SETTINGS } = load('src/lib/defaults.ts');
+  const { themeStyle, contrastRatio, readableText, COLOR_PRESETS } = load('src/lib/theme.ts');
+  const creationTime = 1700000000000;
+  const exampleNote={id:'test',title:'sample',message:'test',createdAt:creationTime,updatedAt:creationTime};
+  const neverGlobal={...DEFAULT_SETTINGS,localRetention:{mode:'never',value:30,unit:'days'}};
+  const afterGlobal={...DEFAULT_SETTINGS,localRetention:{mode:'after',value:1,unit:'days'}};
+  const oneDay = 86_400_000;
+  assert.equal(noteExpiresAt(exampleNote,neverGlobal),null);
+  assert.equal(noteExpiresAt(exampleNote,afterGlobal),creationTime+oneDay);
+  assert.equal(isNoteExpired(exampleNote,afterGlobal,creationTime+oneDay),true);
+  assert.equal(isNoteExpired(exampleNote,afterGlobal,creationTime+oneDay-1),false);
+  const override=buildNoteExpiration('after',3,'days',creationTime);
+  assert(validNoteExpiration(override));
+  assert.equal(override.expiresAt,creationTime+3*oneDay);
+  assert.equal(noteExpiresAt({...exampleNote,localExpiration:override},neverGlobal),creationTime+3*oneDay);
+  assert.equal(noteExpiresAt({...exampleNote,localExpiration:{mode:'never'}},afterGlobal),null);
+  assert.equal(buildNoteExpiration('after',3,'days',creationTime+oneDay,override).expiresAt, override.expiresAt, 'editing unchanged duration must not extend existing deadline');
+  assert.equal(buildNoteExpiration('after',4,'days',creationTime+oneDay,override).expiresAt, creationTime+5*oneDay);
+  assert.equal(buildNoteExpiration('default',3,'days',creationTime),undefined);
+  assert.throws(()=>buildNoteExpiration('after',0,'days',creationTime));
+  assert.equal(validNoteExpiration({mode:'after',value:1,unit:'days',expiresAt:'no'}),false);
+  assert.equal(COLOR_PRESETS.length,3);
+  for(const bg of ['#000000','#ffffff','#123047','#fef0ff']){
+    for(const preferred of ['#ffffff','#000000','#b9a2c2']){
+      assert(contrastRatio(readableText(preferred,bg),bg)>=4.5-0.02, `contrast requirement failed: ${preferred}/${bg}`);
+      const css=themeStyle(bg,'#e889aa',preferred);
+      assert(contrastRatio(css['--page-text'],bg)>=4.5-0.02);
+      assert(contrastRatio(css['--note-text'],'#fffdfa')>=4.5-0.02);
+    }
+  }
+  console.log('PASS: share encryption, eight-photo gallery, legacy links, individual expiration overrides, three palettes, adaptive text contrast and cleanup.');
 })().catch(e=>{console.error(e);process.exitCode=1});

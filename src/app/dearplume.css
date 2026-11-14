@@ -362,3 +362,59 @@
 .memory-stack-controls span { min-width: 45px; text-align: center; }
 @media (prefers-reduced-motion: reduce) { .memory-stack, .memory-stack-photo { transition: none; } }
 @media (max-width: 700px) { .memory-stack-frame .ascii-visual-frame { padding: 7px 11px 14px 5px; } }
+
+/* v0.1.10 — paper keepsakes, per-note expiry and contrast-safe color palettes */
+.site-shell {
+  background: radial-gradient(ellipse at 12% 16%,var(--page-glow,rgba(255,255,255,.65)),transparent 38%),
+              radial-gradient(ellipse at 96% 85%,var(--page-haze,rgba(255,206,222,.14)),transparent 37%),
+              var(--user-bg,#fff4f7);
+}
+/* Background-facing text is adjusted against the chosen PAGE color; paper-facing
+   text is adjusted against the cream paper. Inputs remain dark on white. */
+.site-shell .intro-section h1, .site-shell .intro-section > p,
+.site-shell .site-footer, .site-shell .tabs-hint, .site-shell .collection-title h2,
+.site-shell .collection-title p, .site-shell .recipient-header > span,
+.site-shell .shared-note-wrap > h1, .site-shell .recipient-footer,
+.site-shell .typing-controls > span, .site-shell .shared-expiration,
+.site-shell .brand-sub { color: var(--page-text,#513a48); }
+.site-shell .brand-title, .site-shell .recipient-brand, .site-shell .intro-section h1 em,
+.site-shell .intro-section h1 > span, .site-shell .shared-note-wrap > h1 > span {
+  color: var(--page-accent,#9a536d);
+}
+.site-shell .preview-paper h3, .site-shell .preview-paper p,
+.site-shell .shared-paper .typed-message, .site-shell .note-card h3,
+.site-shell .note-card-content > p, .site-shell .view-note-text {
+  color: var(--note-text,#513a48);
+}
+.note-expiration-setting { background: color-mix(in srgb,var(--accent,#e889aa) 7%,white); border: 1px dashed var(--accent-border,#ebc1d0); border-radius: 15px; padding: 17px 16px; }
+.note-expiration-setting > label { display: flex; align-items: center; gap: 8px; }
+.note-expiration-duration { margin-top: 12px; }
+.note-expiry-badge { display: inline-flex; align-items: center; gap: 5px; padding: 4px 7px; margin-top: 7px; border-radius: 6px; border: 1px solid var(--accent-border,#ecd5de); background: var(--accent-soft,#fff0f4); color: var(--accent-text,#8b5064); font-size: 10px; max-width: 100%; }
+.color-presets { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 9px; margin: 16px 0 18px; }
+.color-preset { border: 1px solid #e7d7dd; border-radius: 12px; background: #fffdfa; cursor: pointer; padding: 12px 8px; display: flex; align-items: center; flex-direction: column; gap: 9px; font-size: 11px; color: #503747; }
+.color-preset strong { font-weight: 800; }
+.color-preset.selected { border-color: var(--accent-button); outline: 2px solid var(--accent-ring); }
+.color-preset:hover { transform: translateY(-2px); }
+.palette-swatches { display: inline-flex; gap: 0; overflow: hidden; border: 1px solid #e4d9da; border-radius: 9px; box-shadow: 0 2px 6px #3d27341b; }
+.palette-swatches i { display: block; height: 24px; width: 27px; }
+.color-preview { background: var(--user-bg); border: 1px solid #00000013; border-radius: 14px; padding: 20px; display: flex; flex-direction: column; gap: 6px; margin-top: 14px; box-shadow: inset 0 0 0 4px #ffffff12; }
+.color-preview span, .color-preview strong, .color-preview small { color: var(--page-text); }
+.color-preview span { font-size: 10px; text-transform: uppercase; letter-spacing: .12em; }
+.color-preview strong { font-family: Georgia,serif; font-size: 20px; }
+.color-preview small { font-size: 10px; opacity: .9; }
+/* Matte washi-tape strips. The note and its buttons remain fully usable. */
+.note-card, .preview-paper, .shared-paper { position: relative; }
+.note-card::before, .note-card::after,
+.preview-paper::before, .preview-paper::after,
+.shared-paper::before, .shared-paper::after { content: ""; position: absolute; pointer-events: none; width: 70px; height: 23px; z-index: 6; opacity: .91; border: 1px solid #ffffff69; box-shadow: 0 2px 4px #543d401b;
+  background: repeating-linear-gradient(105deg,#ffffff18 0 3px,transparent 3px 8px),color-mix(in srgb,var(--accent,#e889aa) 25%,#ffe6c6); clip-path: polygon(3% 1%,100% 5%,96% 99%,0 91%); }
+.note-card::before { top: 7px; left: -12px; transform: rotate(-23deg); }
+.note-card::after { top: 7px; right: -12px; transform: rotate(23deg); }
+.preview-paper::before, .shared-paper::before { top: 20px; left: -22px; transform: rotate(-41deg); }
+.preview-paper::after, .shared-paper::after { top: 18px; right: -22px; transform: rotate(40deg); }
+.note-card { border-radius: 9px 19px 13px 21px; box-shadow: 0 12px 35px #63394716,2px 3px 0 #fffdf8; transition: transform .2s,box-shadow .2s; }
+.note-card:nth-child(even) { border-radius: 17px 9px 21px 13px; }
+.note-card:hover { transform: translateY(-3px) rotate(-.3deg); box-shadow: 0 16px 36px #63394724,2px 3px 0 #fffdf8; }
+.preview-paper, .shared-paper { border-radius: 3px 12px 5px 8px; box-shadow: 0 11px 27px #7b54682c,3px 4px 0 #f9f0e8; }
+.paper-tape { background: repeating-linear-gradient(110deg,#ffffff23 0 4px,transparent 4px 9px),color-mix(in srgb,var(--accent,#e889aa) 24%,#f7dfc6); }
+@media (max-width:720px) { .color-presets { gap: 6px; } .color-preset { padding: 10px 3px; font-size: 9px; } .palette-swatches i { width: 17px; } .note-card::before,.note-card::after { width: 45px; height: 17px; } }
